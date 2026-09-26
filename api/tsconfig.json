@@ -3,7 +3,6 @@
     "target": "ES2023",
     "lib": ["ES2023"],
     "module": "CommonJS",
-    "moduleResolution": "Node",
     "rootDir": ".",
     "outDir": "dist",
     "strict": true,
@@ -13,6 +12,5 @@
     "skipLibCheck": true,
     "types": ["node", "vitest"]
   },
-  "include": ["src/**/*.ts", "vitest.config.ts"]
+  "include": ["src/**/*.ts"]
 }
-

@@ -10,7 +10,6 @@ export function formatZodIssues(issues: ZodIssue[]): FormattedValidationIssue[] 
   return issues.map((issue) => ({
     code: issue.code,
     message: issue.message,
-    path: issue.path,
+    path: issue.path.map((segment) => (typeof segment === 'symbol' ? segment.toString() : segment)),
   }));
 }
-

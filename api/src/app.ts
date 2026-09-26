@@ -25,12 +25,13 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   app.setErrorHandler((error, request, reply) => {
     request.log.error({ err: error }, 'Unhandled request error');
 
-    const statusCode = error.statusCode && error.statusCode >= 400 ? error.statusCode : 500;
+    const statusCode = getErrorStatusCode(error);
+    const message = error instanceof Error ? error.message : 'Unexpected request error.';
 
     return reply.status(statusCode).send({
       error: {
         code: statusCode === 500 ? 'INTERNAL_SERVER_ERROR' : 'REQUEST_ERROR',
-        message: statusCode === 500 ? 'Unexpected internal error.' : error.message,
+        message: statusCode === 500 ? 'Unexpected internal error.' : message,
       },
     });
   });
@@ -39,4 +40,18 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   await app.register(sqlRoutes);
 
   return app;
+}
+
+function getErrorStatusCode(error: unknown) {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'statusCode' in error &&
+    typeof error.statusCode === 'number' &&
+    error.statusCode >= 400
+  ) {
+    return error.statusCode;
+  }
+
+  return 500;
 }
