@@ -1,0 +1,74 @@
+import type { FastifyInstance } from 'fastify';
+import { afterEach, describe, expect, it } from 'vitest';
+
+import { createApp } from '../app';
+
+let app: FastifyInstance | undefined;
+
+afterEach(async () => {
+  await app?.close();
+  app = undefined;
+});
+
+const project = {
+  schemaVersion: '1.0.0',
+  id: 'project_api_test',
+  name: 'API Test Project',
+  dialect: 'postgres',
+  tables: [],
+  relationships: [],
+  layout: {
+    viewport: { x: 0, y: 0, zoom: 1 },
+    tables: [],
+  },
+};
+
+describe('sql routes', () => {
+  it('validates the canonical project model and returns SQL scaffold output', async () => {
+    app = await createApp({ logger: false });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/sql/generate',
+      payload: {
+        project,
+        options: {
+          dialect: 'mysql',
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      dialect: 'mysql',
+      stats: {
+        tables: 0,
+        relationships: 0,
+      },
+    });
+    expect(response.json().sql).toContain('-- DrawBase SQL generation scaffold');
+  });
+
+  it('returns validation errors for invalid payloads', async () => {
+    app = await createApp({ logger: false });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/sql/generate',
+      payload: {
+        project: {
+          ...project,
+          schemaVersion: '0.0.0',
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: 'VALIDATION_ERROR',
+      },
+    });
+  });
+});
+

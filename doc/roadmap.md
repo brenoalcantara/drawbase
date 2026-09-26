@@ -52,6 +52,13 @@ Resultado esperado:
 - Um contrato estavel que frontend e backend possam compartilhar.
 - Menor risco de acoplar a regra de negocio ao React Flow.
 
+Progresso atual:
+
+- `doc/schema-model.md` criado com o contrato canonico `1.0.0`.
+- `api/src/schemas/project.schema.ts` criado com schemas Zod iniciais.
+- `api/src/domain/schema-model.ts` criado para reexportar tipos e schemas do dominio.
+- `doc/examples/` criado com exemplos JSON validos.
+
 ## Fase 2 - API Inicial
 
 Objetivo: criar a API em Node.js + TypeScript + Fastify + Zod.
@@ -73,6 +80,16 @@ Resultado esperado:
 - API rodando localmente.
 - Payloads validados.
 - Primeiro endpoint capaz de receber o modelo canonico.
+
+Progresso atual:
+
+- `api/package.json` criado com scripts `dev`, `build`, `typecheck`, `lint` e `test`.
+- TypeScript configurado em `api/tsconfig.json` e `api/tsconfig.build.json`.
+- Fastify inicializado em `api/src/app.ts` e `api/src/server.ts`.
+- `GET /health` implementado.
+- `POST /api/sql/generate` implementado com validacao Zod do modelo canonico.
+- Servico `sql-generator` criado como scaffold para a Fase 3.
+- Testes iniciais adicionados com Vitest.
 
 ## Fase 3 - Gerador SQL MVP
 
@@ -302,4 +319,3 @@ Ordem sugerida para os proximos passos imediatos:
 8. Engenharia reversa.
 
 Essa ordem reduz risco porque estabelece primeiro o contrato e o motor central. A interface pode evoluir com seguranca em cima de uma base testavel.
-

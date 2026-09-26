@@ -95,11 +95,13 @@ Regras de seguranca para containers:
 
 O modelo canonico e o contrato central do DrawBase. Ele deve representar o schema sem depender do React Flow nem de um dialeto especifico.
 
-Exemplo conceitual:
+O contrato detalhado da versao atual esta em `doc/schema-model.md`. Resumo conceitual:
 
 ```ts
 type ProjectSchema = {
-  version: string;
+  schemaVersion: '1.0.0';
+  id: string;
+  name: string;
   dialect: 'postgres' | 'mysql' | 'sqlite';
   tables: Table[];
   relationships: Relationship[];
@@ -109,6 +111,7 @@ type ProjectSchema = {
 type Table = {
   id: string;
   name: string;
+  schema?: string;
   columns: Column[];
   indexes: Index[];
 };
@@ -116,25 +119,25 @@ type Table = {
 type Column = {
   id: string;
   name: string;
-  type: LogicalType;
+  type: LogicalColumnType;
   nullable: boolean;
   primaryKey: boolean;
   unique: boolean;
-  defaultValue?: string;
+  default?: ColumnDefault;
 };
 
 type Relationship = {
   id: string;
-  sourceTableId: string;
-  sourceColumnId: string;
-  targetTableId: string;
-  targetColumnId: string;
+  localTableId: string;
+  localColumnIds: string[];
+  referencedTableId: string;
+  referencedColumnIds: string[];
   onDelete?: ReferentialAction;
   onUpdate?: ReferentialAction;
 };
 ```
 
-Esse modelo deve ser a fonte da verdade. O React Flow renderiza `nodes` e `edges` a partir dele, e o backend gera SQL a partir dele.
+Esse modelo deve ser a fonte da verdade. O React Flow renderiza `nodes` e `edges` a partir dele, e o backend gera SQL a partir dele. Relacionamentos usam `local` e `referenced` em vez de `source` e `target` para nao acoplar o dominio aos termos do React Flow.
 
 ## Dialetos SQL
 
@@ -335,4 +338,3 @@ app/
 - A geracao SQL deve ser previsivel, testada e explicavel.
 - Recursos perigosos, como executar SQL em banco real, devem vir depois e com confirmacao explicita.
 - O projeto deve continuar simples o bastante para uma pessoa manter.
-

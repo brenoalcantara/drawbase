@@ -1,0 +1,36 @@
+export {
+  DRAWBASE_SCHEMA_VERSION,
+  databaseDialectSchema,
+  logicalColumnTypeSchema,
+  columnDefaultSchema,
+  columnSchema,
+  indexSchema,
+  tableSchema,
+  relationshipSchema,
+  layoutStateSchema,
+  projectMetadataSchema,
+  projectSchema,
+  supportedDialects,
+  supportedIndexMethods,
+  supportedIntegerSizes,
+  supportedReferentialActions,
+  supportedSortOrders,
+} from '../schemas/project.schema';
+
+export type {
+  CanvasViewport,
+  Column,
+  ColumnDefault,
+  DatabaseDialect,
+  Index,
+  IndexColumn,
+  LayoutState,
+  LogicalColumnType,
+  ProjectMetadata,
+  ProjectSchema,
+  ReferentialAction,
+  Relationship,
+  Table,
+  TableLayout,
+} from '../schemas/project.schema';
+

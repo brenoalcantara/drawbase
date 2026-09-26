@@ -1,0 +1,241 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "project_blog",
+  "name": "Blog Schema",
+  "dialect": "postgres",
+  "tables": [
+    {
+      "id": "table_users",
+      "name": "users",
+      "schema": "public",
+      "columns": [
+        {
+          "id": "column_users_id",
+          "name": "id",
+          "type": {
+            "kind": "integer",
+            "size": "big",
+            "autoIncrement": true
+          },
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false
+        },
+        {
+          "id": "column_users_email",
+          "name": "email",
+          "type": {
+            "kind": "varchar",
+            "length": 255
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": true
+        },
+        {
+          "id": "column_users_display_name",
+          "name": "display_name",
+          "type": {
+            "kind": "varchar",
+            "length": 120
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false
+        },
+        {
+          "id": "column_users_created_at",
+          "name": "created_at",
+          "type": {
+            "kind": "timestamp",
+            "withTimezone": true
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": {
+            "kind": "currentTimestamp"
+          }
+        }
+      ],
+      "indexes": [
+        {
+          "id": "index_users_email",
+          "name": "idx_users_email",
+          "unique": true,
+          "columns": [
+            {
+              "columnId": "column_users_email",
+              "order": "asc"
+            }
+          ],
+          "method": "btree"
+        }
+      ]
+    },
+    {
+      "id": "table_posts",
+      "name": "posts",
+      "schema": "public",
+      "columns": [
+        {
+          "id": "column_posts_id",
+          "name": "id",
+          "type": {
+            "kind": "integer",
+            "size": "big",
+            "autoIncrement": true
+          },
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false
+        },
+        {
+          "id": "column_posts_user_id",
+          "name": "user_id",
+          "type": {
+            "kind": "integer",
+            "size": "big",
+            "autoIncrement": false
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false
+        },
+        {
+          "id": "column_posts_title",
+          "name": "title",
+          "type": {
+            "kind": "varchar",
+            "length": 200
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false
+        },
+        {
+          "id": "column_posts_body",
+          "name": "body",
+          "type": {
+            "kind": "text"
+          },
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false
+        },
+        {
+          "id": "column_posts_published",
+          "name": "published",
+          "type": {
+            "kind": "boolean"
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": {
+            "kind": "literal",
+            "value": false
+          }
+        },
+        {
+          "id": "column_posts_created_at",
+          "name": "created_at",
+          "type": {
+            "kind": "timestamp",
+            "withTimezone": true
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": {
+            "kind": "currentTimestamp"
+          }
+        }
+      ],
+      "indexes": [
+        {
+          "id": "index_posts_user_id",
+          "name": "idx_posts_user_id",
+          "unique": false,
+          "columns": [
+            {
+              "columnId": "column_posts_user_id",
+              "order": "asc"
+            }
+          ],
+          "method": "btree"
+        },
+        {
+          "id": "index_posts_published",
+          "name": "idx_posts_published",
+          "unique": false,
+          "columns": [
+            {
+              "columnId": "column_posts_published",
+              "order": "asc"
+            },
+            {
+              "columnId": "column_posts_created_at",
+              "order": "desc"
+            }
+          ],
+          "method": "btree"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "id": "relationship_posts_users",
+      "name": "fk_posts_users",
+      "localTableId": "table_posts",
+      "localColumnIds": [
+        "column_posts_user_id"
+      ],
+      "referencedTableId": "table_users",
+      "referencedColumnIds": [
+        "column_users_id"
+      ],
+      "onDelete": "cascade",
+      "onUpdate": "cascade"
+    }
+  ],
+  "layout": {
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "zoom": 1
+    },
+    "tables": [
+      {
+        "tableId": "table_users",
+        "position": {
+          "x": 120,
+          "y": 120
+        },
+        "size": {
+          "width": 280,
+          "height": 260
+        },
+        "collapsed": false
+      },
+      {
+        "tableId": "table_posts",
+        "position": {
+          "x": 520,
+          "y": 160
+        },
+        "size": {
+          "width": 300,
+          "height": 340
+        },
+        "collapsed": false
+      }
+    ]
+  },
+  "metadata": {
+    "description": "Example DrawBase project with users, posts, indexes and a foreign key.",
+    "createdAt": "2026-09-26T00:00:00.000Z",
+    "updatedAt": "2026-09-26T00:00:00.000Z"
+  }
+}
