@@ -16,7 +16,7 @@ Current state:
 
 - The repository is organized as a monorepo.
 - The frontend was initialized with Vite, React and React Flow.
-- The API has an initial Node.js + TypeScript + Fastify scaffold.
+- The API has an initial Node.js + TypeScript + Fastify implementation.
 - Architecture and roadmap documents are available in `doc/`.
 
 ## Planned Stack
@@ -48,7 +48,7 @@ Runtime and local development:
 ```txt
 drawbase/
   app/                  # Frontend React application
-  api/                  # Backend API scaffold
+  api/                  # Backend API
   doc/                  # Architecture, roadmap and project documentation
   LICENSE               # MIT license
   README.md             # Project overview
@@ -93,7 +93,7 @@ npm install
 npm run dev
 ```
 
-The API scaffold lives in `api/`.
+The API lives in `api/`.
 
 ```bash
 cd api

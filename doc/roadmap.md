@@ -88,7 +88,7 @@ Progresso atual:
 - Fastify inicializado em `api/src/app.ts` e `api/src/server.ts`.
 - `GET /health` implementado.
 - `POST /api/sql/generate` implementado com validacao Zod do modelo canonico.
-- Servico `sql-generator` criado como scaffold para a Fase 3.
+- Servico `sql-generator` criado e depois evoluido na Fase 3.
 - Testes iniciais adicionados com Vitest.
 
 ## Fase 3 - Gerador SQL MVP
@@ -123,6 +123,18 @@ Resultado esperado:
 
 - SQL gerado para PostgreSQL, MySQL e SQLite a partir do mesmo modelo.
 - Motor coberto por testes automatizados.
+
+Progresso atual:
+
+- Camada `api/src/dialects/` criada.
+- Escape de identificadores implementado para PostgreSQL, MySQL e SQLite.
+- `CREATE TABLE` implementado.
+- Primary keys implementadas.
+- Foreign keys implementadas como constraints de tabela.
+- Nullable, not null, unique e defaults simples implementados.
+- Indices implementados por dialeto com warnings para recursos nao suportados.
+- Ordenacao simples de tabelas por dependencia implementada.
+- Testes de geracao SQL adicionados para os tres dialetos.
 
 ## Fase 4 - Frontend MVP
 

@@ -29,7 +29,7 @@ GET  /health
 POST /api/sql/generate
 ```
 
-Both endpoints are scaffolded. SQL generation currently validates the canonical project model and returns structured placeholder output; dialect-specific DDL generation belongs to the next roadmap phase.
+`POST /api/sql/generate` validates the canonical project model and generates initial DDL for PostgreSQL, MySQL and SQLite.
 
 ## Local Development
 
