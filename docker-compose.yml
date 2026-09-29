@@ -39,6 +39,7 @@ services:
     environment:
       CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-true}
       HOST: 0.0.0.0
+      INTROSPECTION_ALLOWED_HOSTS: ${INTROSPECTION_ALLOWED_HOSTS:-localhost,127.0.0.1,postgres-test,mysql-test}
       MYSQL_TEST_URL: mysql://drawbase:drawbase_dev_password@mysql-test:3306/drawbase_dev
       NODE_ENV: development
       PORT: 3001

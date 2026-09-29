@@ -261,6 +261,31 @@ select:focus {
   min-width: 0;
 }
 
+.import-panel {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 16px;
+}
+
+.compact-field {
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.compact-field input,
+.compact-field select {
+  min-height: 32px;
+}
+
+.split-fields {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) 82px;
+}
+
+.wide-button {
+  width: 100%;
+}
+
 .project-list {
   display: grid;
   gap: 7px;
@@ -319,6 +344,22 @@ select:focus {
 
 .sidebar-message--error {
   color: var(--danger);
+}
+
+.sidebar-warning-list {
+  background: var(--warning-soft);
+  border: 1px solid rgba(154, 103, 0, 0.28);
+  border-radius: 8px;
+  color: var(--warning);
+  display: grid;
+  font-size: 12px;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 8px;
+}
+
+.sidebar-warning-list p {
+  margin: 0;
 }
 
 .table-list-item {

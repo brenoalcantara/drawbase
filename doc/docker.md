@@ -50,6 +50,8 @@ As credenciais incluidas no exemplo sao apenas para desenvolvimento local.
 
 `PROJECTS_DATA_DIR` define o diretorio de projetos JSON dentro do container da API. No Compose, esse caminho e montado no volume `projects_data`.
 
+`INTROSPECTION_ALLOWED_HOSTS` controla quais hosts a API aceita para engenharia reversa. O padrao permite apenas `localhost`, `127.0.0.1`, `postgres-test` e `mysql-test`.
+
 ## Seguranca
 
 - Os bancos de teste nao sao expostos em interfaces publicas.

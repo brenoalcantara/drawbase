@@ -2,14 +2,23 @@ export type DatabaseDialect = 'postgres' | 'mysql' | 'sqlite';
 
 export type LogicalColumnType =
   | { kind: 'integer'; size?: 'small' | 'standard' | 'big'; autoIncrement?: boolean }
+  | { kind: 'decimal'; precision?: number; scale?: number }
   | { kind: 'varchar'; length: number }
   | { kind: 'text' }
   | { kind: 'boolean' }
-  | { kind: 'timestamp'; withTimezone?: boolean };
+  | { kind: 'date' }
+  | { kind: 'time' }
+  | { kind: 'timestamp'; withTimezone?: boolean }
+  | { kind: 'json' }
+  | { kind: 'uuid' }
+  | { kind: 'binary' }
+  | { kind: 'custom'; raw: string };
 
 export type ColumnDefault =
   | { kind: 'literal'; value: string | number | boolean | null }
-  | { kind: 'currentTimestamp' };
+  | { kind: 'expression'; value: string }
+  | { kind: 'currentTimestamp' }
+  | { kind: 'uuid' };
 
 export type Column = {
   id: string;
@@ -26,7 +35,7 @@ export type Index = {
   name: string;
   unique: boolean;
   columns: Array<{ columnId: string; order: 'asc' | 'desc' }>;
-  method?: 'btree';
+  method?: 'btree' | 'hash' | 'gin' | 'gist' | 'fulltext';
   where?: string;
 };
 
@@ -203,14 +212,28 @@ export function formatColumnType(type: LogicalColumnType) {
   switch (type.kind) {
     case 'integer':
       return type.autoIncrement ? `${type.size ?? 'standard'} int auto` : `${type.size ?? 'standard'} int`;
+    case 'decimal':
+      return type.precision ? `decimal(${type.precision}${type.scale !== undefined ? `,${type.scale}` : ''})` : 'decimal';
     case 'varchar':
       return `varchar(${type.length})`;
     case 'text':
       return 'text';
     case 'boolean':
       return 'boolean';
+    case 'date':
+      return 'date';
+    case 'time':
+      return 'time';
     case 'timestamp':
       return type.withTimezone ? 'timestamptz' : 'timestamp';
+    case 'json':
+      return 'json';
+    case 'uuid':
+      return 'uuid';
+    case 'binary':
+      return 'binary';
+    case 'custom':
+      return type.raw;
   }
 }
 
@@ -218,13 +241,27 @@ export function columnTypeFromKind(kind: LogicalColumnType['kind']): LogicalColu
   switch (kind) {
     case 'integer':
       return { kind: 'integer', size: 'standard', autoIncrement: false };
+    case 'decimal':
+      return { kind: 'decimal' };
     case 'varchar':
       return { kind: 'varchar', length: 255 };
     case 'text':
       return { kind: 'text' };
     case 'boolean':
       return { kind: 'boolean' };
+    case 'date':
+      return { kind: 'date' };
+    case 'time':
+      return { kind: 'time' };
     case 'timestamp':
       return { kind: 'timestamp', withTimezone: true };
+    case 'json':
+      return { kind: 'json' };
+    case 'uuid':
+      return { kind: 'uuid' };
+    case 'binary':
+      return { kind: 'binary' };
+    case 'custom':
+      return { kind: 'custom', raw: 'TEXT' };
   }
 }

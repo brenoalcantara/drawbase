@@ -259,6 +259,25 @@ Resultado esperado:
 
 - Usuario consegue conectar a um banco de teste e gerar diagrama automaticamente.
 
+Progresso atual:
+
+- Endpoint `POST /api/introspection/import` implementado.
+- Introspeccao PostgreSQL implementada via `information_schema` e `pg_catalog`.
+- Introspeccao MySQL implementada via `information_schema`.
+- Introspeccao SQLite implementada via `sql.js` para arquivos dentro de `SQLITE_DATA_DIR`.
+- Mapeamento de tabelas, colunas, PKs, FKs e indices para `ProjectSchema` implementado.
+- Timeouts validados por payload.
+- Allowlist de hosts implementada via `INTROSPECTION_ALLOWED_HOSTS`.
+- Credenciais nao sao persistidas nem retornadas.
+- Frontend integrado com painel inicial de importacao.
+- Smoke tests manuais realizados contra PostgreSQL, MySQL e SQLite do Docker Compose.
+
+Pendente:
+
+- Transformar o painel de importacao em modal dedicado.
+- Melhorar mapeamento de defaults e tipos especificos por dialeto.
+- Adicionar testes automatizados de integracao com bancos reais no CI.
+
 ## Fase 8 - Layout e Usabilidade
 
 Objetivo: aproximar a experiencia de ferramentas desktop como MySQL Workbench.

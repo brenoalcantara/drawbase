@@ -9,7 +9,7 @@ The API is implemented with:
 - Fastify
 - Zod
 
-Knex will be added when database connection or introspection work starts.
+Knex may be added later for auxiliary query building, but the initial introspection uses explicit database drivers.
 
 ## Responsibilities
 
@@ -32,10 +32,12 @@ POST /api/projects
 GET  /api/projects/:id
 PUT  /api/projects/:id
 DELETE /api/projects/:id
+POST /api/introspection/import
 ```
 
 `POST /api/sql/generate` validates the canonical project model and generates initial DDL for PostgreSQL, MySQL and SQLite.
 Project endpoints persist the canonical project model as JSON files.
+`POST /api/introspection/import` imports allowlisted PostgreSQL, MySQL and SQLite sources into the canonical project model.
 
 ## Local Development
 
@@ -51,12 +53,6 @@ npm run build
 npm run typecheck
 npm run lint
 npm run test
-```
-
-Future endpoints:
-
-```txt
-POST   /api/introspection/import
 ```
 
 ## Notes

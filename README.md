@@ -16,7 +16,7 @@ Current state:
 
 - The repository is organized as a monorepo.
 - The frontend has a TypeScript React Flow editor with table nodes, column editing, relationships and SQL preview.
-- The API has a Node.js + TypeScript + Fastify implementation with Zod validation, SQL generation and JSON project persistence.
+- The API has a Node.js + TypeScript + Fastify implementation with Zod validation, SQL generation, JSON project persistence and initial database introspection.
 - Architecture and roadmap documents are available in `doc/`.
 
 ## Planned Stack

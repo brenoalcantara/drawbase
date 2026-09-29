@@ -219,6 +219,15 @@ Saida:
 
 Esse recurso deve ser implementado com cuidado. A API nao deve aceitar conexoes arbitrarias sem restricoes. Devem existir timeouts, allowlist de hosts em ambientes sensiveis e limites de tamanho.
 
+Implementacao inicial:
+
+- PostgreSQL, MySQL e SQLite sao importados por adaptadores isolados na API.
+- A API aplica allowlist de hosts via `INTROSPECTION_ALLOWED_HOSTS`.
+- SQLite so aceita arquivos resolvidos dentro de `SQLITE_DATA_DIR`.
+- Cada importacao possui timeout validado no payload.
+- Credenciais recebidas sao usadas apenas na chamada; nao sao persistidas nem retornadas.
+- O resultado e convertido para `ProjectSchema` e pode ser salvo separadamente pelo fluxo de projetos.
+
 ### Persistencia
 
 No MVP local, a persistencia inicial usa arquivos JSON locais.

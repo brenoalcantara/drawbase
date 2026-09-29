@@ -10,6 +10,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
+import { importDatabaseSchema, type IntrospectionConnection, type IntrospectionImportResponse } from './api/introspection';
 import {
   deleteSavedProject,
   listProjects,
@@ -50,8 +51,36 @@ type ProjectPersistenceState = {
   message: string | null;
 };
 
+type ImportState = {
+  status: 'idle' | 'importing' | 'ready' | 'error';
+  message: string | null;
+  warnings: IntrospectionImportResponse['warnings'];
+};
+
+type ImportFormState = {
+  dialect: DatabaseDialect;
+  host: string;
+  port: string;
+  database: string;
+  user: string;
+  password: string;
+  schemas: string;
+  sqliteFilePath: string;
+};
+
 type PositionNodeChange = Extract<NodeChange, { type: 'position' }> & {
   position: { x: number; y: number };
+};
+
+const initialImportForm: ImportFormState = {
+  dialect: 'postgres',
+  host: 'postgres-test',
+  port: '5432',
+  database: 'drawbase_dev',
+  user: 'drawbase',
+  password: 'drawbase_dev_password',
+  schemas: 'public',
+  sqliteFilePath: 'example.sqlite',
 };
 
 export default function App() {
@@ -68,6 +97,12 @@ export default function App() {
     projects: [],
     message: null,
   });
+  const [importState, setImportState] = useState<ImportState>({
+    status: 'idle',
+    message: null,
+    warnings: [],
+  });
+  const [importForm, setImportForm] = useState<ImportFormState>(initialImportForm);
 
   const nodes = useMemo(() => projectToNodes(project, selectedTableId), [project, selectedTableId]);
   const edges = useMemo(() => projectToEdges(project), [project]);
@@ -324,6 +359,52 @@ export default function App() {
     [project.id],
   );
 
+  const updateImportForm = useCallback((update: Partial<ImportFormState>) => {
+    setImportForm((current) => {
+      const next = { ...current, ...update };
+
+      if (update.dialect === 'postgres') {
+        return { ...next, host: 'postgres-test', port: '5432', database: 'drawbase_dev', user: 'drawbase' };
+      }
+
+      if (update.dialect === 'mysql') {
+        return { ...next, host: 'mysql-test', port: '3306', database: 'drawbase_dev', user: 'drawbase', schemas: '' };
+      }
+
+      if (update.dialect === 'sqlite') {
+        return { ...next, host: '', port: '', database: '', user: '', password: '', schemas: '' };
+      }
+
+      return next;
+    });
+  }, []);
+
+  const importSchema = useCallback(async () => {
+    setImportState({ status: 'importing', message: null, warnings: [] });
+
+    try {
+      const response = await importDatabaseSchema(createImportConnection(importForm), {
+        id: createId('project'),
+        name: `${importForm.database || importForm.sqliteFilePath || 'Database'} Import`,
+      });
+
+      setProject(response.project);
+      setSelectedTableId(response.project.tables[0]?.id ?? null);
+      setImportState({
+        status: 'ready',
+        message: `Imported ${response.stats.tables} tables`,
+        warnings: response.warnings,
+      });
+      setProjectState((current) => ({ ...current, message: null }));
+    } catch (error) {
+      setImportState({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Database import failed.',
+        warnings: [],
+      });
+    }
+  }, [importForm]);
+
   const updateProjectName = useCallback((name: string) => {
     setProject((current) => ({ ...current, name }));
   }, []);
@@ -467,6 +548,13 @@ export default function App() {
             status={projectState.status}
           />
 
+          <ImportPanel
+            form={importForm}
+            onImport={importSchema}
+            onUpdate={updateImportForm}
+            state={importState}
+          />
+
           <section className="sidebar-section">
             <PanelTitle title="Tables" />
             <div className="table-list">
@@ -539,6 +627,92 @@ export default function App() {
   );
 }
 
+function ImportPanel({
+  form,
+  onImport,
+  onUpdate,
+  state,
+}: {
+  form: ImportFormState;
+  onImport: () => void;
+  onUpdate: (update: Partial<ImportFormState>) => void;
+  state: ImportState;
+}) {
+  return (
+    <section className="sidebar-section import-panel">
+      <PanelTitle title="Import" />
+
+      <label className="field compact-field">
+        <span>Source</span>
+        <select onChange={(event) => onUpdate({ dialect: event.target.value as DatabaseDialect })} value={form.dialect}>
+          <option value="postgres">PostgreSQL</option>
+          <option value="mysql">MySQL</option>
+          <option value="sqlite">SQLite</option>
+        </select>
+      </label>
+
+      {form.dialect === 'sqlite' ? (
+        <label className="field compact-field">
+          <span>SQLite file</span>
+          <input onChange={(event) => onUpdate({ sqliteFilePath: event.target.value })} value={form.sqliteFilePath} />
+        </label>
+      ) : (
+        <>
+          <div className="split-fields">
+            <label className="field compact-field">
+              <span>Host</span>
+              <input onChange={(event) => onUpdate({ host: event.target.value })} value={form.host} />
+            </label>
+            <label className="field compact-field">
+              <span>Port</span>
+              <input onChange={(event) => onUpdate({ port: event.target.value })} value={form.port} />
+            </label>
+          </div>
+          <label className="field compact-field">
+            <span>Database</span>
+            <input onChange={(event) => onUpdate({ database: event.target.value })} value={form.database} />
+          </label>
+          <div className="split-fields">
+            <label className="field compact-field">
+              <span>User</span>
+              <input onChange={(event) => onUpdate({ user: event.target.value })} value={form.user} />
+            </label>
+            <label className="field compact-field">
+              <span>Password</span>
+              <input
+                onChange={(event) => onUpdate({ password: event.target.value })}
+                type="password"
+                value={form.password}
+              />
+            </label>
+          </div>
+          {form.dialect === 'postgres' ? (
+            <label className="field compact-field">
+              <span>Schemas</span>
+              <input onChange={(event) => onUpdate({ schemas: event.target.value })} value={form.schemas} />
+            </label>
+          ) : null}
+        </>
+      )}
+
+      <button className="secondary-button wide-button" disabled={state.status === 'importing'} onClick={onImport} type="button">
+        {state.status === 'importing' ? 'Importing' : 'Import Schema'}
+      </button>
+
+      {state.message ? (
+        <p className={state.status === 'error' ? 'sidebar-message sidebar-message--error' : 'sidebar-message'}>{state.message}</p>
+      ) : null}
+      {state.warnings.length > 0 ? (
+        <div className="sidebar-warning-list">
+          {state.warnings.map((warning) => (
+            <p key={`${warning.code}-${warning.message}`}>{warning.message}</p>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function ProjectsPanel({
   currentProjectId,
   message,
@@ -588,6 +762,45 @@ function ProjectsPanel({
       {message ? <p className={status === 'error' ? 'sidebar-message sidebar-message--error' : 'sidebar-message'}>{message}</p> : null}
     </section>
   );
+}
+
+function createImportConnection(form: ImportFormState): IntrospectionConnection {
+  const timeoutMs = 5000;
+
+  if (form.dialect === 'sqlite') {
+    return {
+      dialect: 'sqlite',
+      filePath: form.sqliteFilePath,
+      timeoutMs,
+    };
+  }
+
+  if (form.dialect === 'mysql') {
+    return {
+      dialect: 'mysql',
+      host: form.host,
+      port: Number.parseInt(form.port || '3306', 10),
+      database: form.database,
+      user: form.user,
+      password: form.password,
+      timeoutMs,
+    };
+  }
+
+  return {
+    dialect: 'postgres',
+    host: form.host,
+    port: Number.parseInt(form.port || '5432', 10),
+    database: form.database,
+    user: form.user,
+    password: form.password,
+    schemas: form.schemas
+      .split(',')
+      .map((schema) => schema.trim())
+      .filter(Boolean),
+    ssl: false,
+    timeoutMs,
+  };
 }
 
 function TableInspector({
@@ -668,10 +881,17 @@ function ColumnEditor({
           value={column.type.kind}
         >
           <option value="integer">Integer</option>
+          <option value="decimal">Decimal</option>
           <option value="varchar">Varchar</option>
           <option value="text">Text</option>
           <option value="boolean">Boolean</option>
+          <option value="date">Date</option>
+          <option value="time">Time</option>
           <option value="timestamp">Timestamp</option>
+          <option value="json">JSON</option>
+          <option value="uuid">UUID</option>
+          <option value="binary">Binary</option>
+          <option value="custom">Custom</option>
         </select>
         {column.type.kind === 'varchar' ? (
           <input
@@ -778,6 +998,14 @@ function defaultToInput(defaultValue: Column['default']) {
     return 'CURRENT_TIMESTAMP';
   }
 
+  if (defaultValue.kind === 'uuid') {
+    return 'UUID';
+  }
+
+  if (defaultValue.kind === 'expression') {
+    return `=${defaultValue.value}`;
+  }
+
   return String(defaultValue.value ?? 'NULL');
 }
 
@@ -790,6 +1018,14 @@ function defaultFromInput(value: string): Column['default'] | undefined {
 
   if (trimmed.toUpperCase() === 'CURRENT_TIMESTAMP') {
     return { kind: 'currentTimestamp' };
+  }
+
+  if (trimmed.toUpperCase() === 'UUID') {
+    return { kind: 'uuid' };
+  }
+
+  if (trimmed.startsWith('=')) {
+    return { kind: 'expression', value: trimmed.slice(1) || 'NULL' };
   }
 
   if (trimmed.toUpperCase() === 'NULL') {
