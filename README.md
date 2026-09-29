@@ -10,13 +10,13 @@ The initial database targets are:
 
 ## Status
 
-DrawBase is in the early planning and foundation stage.
+DrawBase is in the early MVP stage.
 
 Current state:
 
 - The repository is organized as a monorepo.
-- The frontend was initialized with Vite, React and React Flow.
-- The API has an initial Node.js + TypeScript + Fastify implementation.
+- The frontend has a TypeScript React Flow editor with table nodes, column editing, relationships and SQL preview.
+- The API has a Node.js + TypeScript + Fastify implementation with Zod validation, SQL generation and JSON project persistence.
 - Architecture and roadmap documents are available in `doc/`.
 
 ## Planned Stack
@@ -50,6 +50,7 @@ drawbase/
   app/                  # Frontend React application
   api/                  # Backend API
   doc/                  # Architecture, roadmap and project documentation
+  docker-compose.yml    # Local Docker environment
   LICENSE               # MIT license
   README.md             # Project overview
 ```
@@ -85,6 +86,22 @@ The recommended order is:
 
 ## Local Development
 
+The recommended local path is Docker Compose from the repository root:
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+Then open:
+
+- Frontend: `http://localhost:5173`
+- API healthcheck: `http://localhost:3001/health`
+
+More details are available in [doc/docker.md](doc/docker.md).
+
+Manual development is also supported.
+
 The frontend currently lives in `app/`.
 
 ```bash
@@ -100,6 +117,8 @@ cd api
 npm install
 npm run dev
 ```
+
+During local development, run the API on `http://localhost:3001` before opening the frontend. Vite proxies `/api` and `/health` to the API.
 
 ## Security Direction
 

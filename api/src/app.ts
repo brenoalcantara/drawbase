@@ -1,10 +1,12 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 
 import { healthRoutes } from './routes/health.routes';
+import { projectRoutes } from './routes/projects.routes';
 import { sqlRoutes } from './routes/sql.routes';
 
 type CreateAppOptions = {
   logger?: boolean;
+  projectsDataDir?: string;
 };
 
 export async function createApp(options: CreateAppOptions = {}): Promise<FastifyInstance> {
@@ -37,6 +39,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   });
 
   await app.register(healthRoutes);
+  await app.register(projectRoutes, { dataDir: options.projectsDataDir });
   await app.register(sqlRoutes);
 
   return app;

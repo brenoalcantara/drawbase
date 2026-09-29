@@ -4,9 +4,9 @@
 
 O projeto possui tres diretorios principais:
 
-- `app/`: frontend Vite + React com `@xyflow/react` instalado e um exemplo minimo de canvas.
-- `api/`: pasta reservada para a API, ainda vazia.
-- `doc/`: documentacao inicial, comandos usados e PDF com consulta de referencia.
+- `app/`: frontend Vite + React + TypeScript com editor React Flow inicial.
+- `api/`: API Node.js + TypeScript + Fastify + Zod com geracao SQL MVP.
+- `doc/`: documentacao de arquitetura, roadmap, modelo canonico, exemplos JSON e PDF com consulta de referencia.
 
 O objetivo e evoluir para um software web dockerizado, open source, para modelagem visual de bancos de dados com suporte inicial a PostgreSQL, MySQL e SQLite.
 
@@ -159,6 +159,18 @@ Resultado esperado:
 - Usuario consegue criar tabelas, colunas e relacionamentos visualmente.
 - Usuario consegue ver o SQL gerado.
 
+Progresso atual:
+
+- Frontend migrado para TypeScript.
+- Modelo canonico local criado em `app/src/model/schema.ts`.
+- Adapter React Flow criado em `app/src/model/reactFlowAdapter.ts`.
+- `TableNode` customizado criado com handles por coluna.
+- Toolbar com seletor de dialeto e criacao de tabelas adicionada.
+- Painel de tabelas e inspector de tabela/coluna adicionados.
+- Canvas envia conexoes como relacionamentos do modelo canonico.
+- Preview SQL integrado ao endpoint `POST /api/sql/generate`.
+- Vite configurado com proxy local para a API.
+
 ## Fase 5 - Docker Local
 
 Objetivo: rodar o ambiente completo com Docker Compose.
@@ -181,6 +193,17 @@ Resultado esperado:
 - Um comando sobe frontend, API e bancos de teste.
 - Ambiente reproduzivel para desenvolvimento e demonstracao.
 
+Progresso atual:
+
+- `docker-compose.yml` criado na raiz.
+- Dockerfile de desenvolvimento e preview criado para `app`.
+- Dockerfile de desenvolvimento e producao criado para `api`.
+- Servicos `postgres-test` e `mysql-test` adicionados.
+- Volume `sqlite_data` adicionado para SQLite.
+- Healthchecks adicionados para `app`, `api`, PostgreSQL e MySQL.
+- `.env.example` criado na raiz.
+- Documentacao criada em `doc/docker.md`.
+
 ## Fase 6 - Persistencia de Projetos
 
 Objetivo: permitir salvar e carregar diagramas.
@@ -200,6 +223,20 @@ Resultado esperado:
 
 - Usuario nao perde o trabalho ao fechar o navegador.
 - Projetos podem ser reabertos e editados.
+
+Progresso atual:
+
+- Armazenamento inicial decidido como JSON local.
+- Serviço `JsonProjectStore` criado na API com escrita atomica e nomes de arquivo baseados em hash do id.
+- Endpoints `GET /api/projects`, `POST /api/projects`, `GET /api/projects/:id`, `PUT /api/projects/:id` e `DELETE /api/projects/:id` implementados.
+- Projetos salvos em envelope JSON com `createdAt` e `updatedAt`.
+- Testes de integracao adicionados para salvar, listar, carregar, atualizar, excluir e validar payloads.
+- Frontend integrado com lista de projetos, salvar, novo projeto, carregar, recarregar e excluir.
+- Docker Compose atualizado com volume `projects_data` e `PROJECTS_DATA_DIR`.
+
+Pendente:
+
+- Autosave opcional.
 
 ## Fase 7 - Importacao e Engenharia Reversa
 

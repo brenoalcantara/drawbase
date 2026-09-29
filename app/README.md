@@ -1,16 +1,36 @@
-# React + Vite
+# DrawBase App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend web do DrawBase.
 
-Currently, two official plugins are available:
+Stack atual:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React
+- TypeScript
+- Vite
+- React Flow via `@xyflow/react`
 
-## React Compiler
+## Desenvolvimento Local
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Rodando diretamente:
 
-## Expanding the ESLint configuration
+```bash
+npm install
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Rodando pela raiz do projeto com Docker Compose:
+
+```bash
+docker compose up --build app
+```
+
+O frontend espera a API em `/api`. Fora do Docker, o proxy aponta para `http://localhost:3001`.
+Dentro do Docker Compose, o proxy aponta para `http://api:3001` via `DRAWBASE_API_PROXY_TARGET`.
+
+## Scripts
+
+```bash
+npm run typecheck
+npm run lint
+npm run build
+```

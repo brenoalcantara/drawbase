@@ -34,7 +34,7 @@ Tecnologias:
 - React
 - Vite
 - React Flow, via `@xyflow/react`
-- TypeScript, a ser adotado na evolucao do app atual
+- TypeScript
 
 Responsabilidades:
 
@@ -80,7 +80,7 @@ Servicos previstos:
 - `api`: backend Fastify.
 - `postgres-test`: banco PostgreSQL para testes locais.
 - `mysql-test`: banco MySQL para testes locais.
-- `sqlite-data`: volume ou pasta montada para arquivos SQLite de teste.
+- `sqlite_data`: volume para arquivos SQLite de teste.
 
 Regras de seguranca para containers:
 
@@ -221,12 +221,16 @@ Esse recurso deve ser implementado com cuidado. A API nao deve aceitar conexoes 
 
 ### Persistencia
 
-No MVP local, ha duas opcoes aceitaveis:
+No MVP local, a persistencia inicial usa arquivos JSON locais.
 
-- salvar projetos em arquivos JSON locais;
-- salvar projetos em um banco interno, preferencialmente SQLite para simplicidade ou PostgreSQL se o projeto ja exigir multiusuario.
+Regras:
 
-Para manter a primeira versao simples, o armazenamento pode comecar com arquivos locais ou SQLite. A decisao final deve considerar se o DrawBase tera login e multiplos usuarios logo no inicio.
+- A API persiste o `ProjectSchema` validado em um envelope JSON com `createdAt` e `updatedAt`.
+- O nome fisico do arquivo e derivado de hash do id do projeto para evitar path traversal e nomes perigosos.
+- O diretorio padrao e configurado por `PROJECTS_DATA_DIR`.
+- No Docker Compose, os arquivos ficam em volume nomeado `projects_data`.
+- O frontend usa endpoints REST para listar, salvar, carregar e excluir projetos.
+- Autosave fica para evolucao posterior.
 
 ## Seguranca
 

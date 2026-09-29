@@ -9,7 +9,7 @@ The API is implemented with:
 - Fastify
 - Zod
 
-Knex will be added when database connection, persistence or introspection work starts.
+Knex will be added when database connection or introspection work starts.
 
 ## Responsibilities
 
@@ -22,14 +22,20 @@ The backend will be responsible for:
 - importing existing schemas through database introspection;
 - enforcing security limits around credentials, hosts and generated SQL execution.
 
-## Planned Initial Endpoints
+## Current Endpoints
 
 ```txt
 GET  /health
 POST /api/sql/generate
+GET  /api/projects
+POST /api/projects
+GET  /api/projects/:id
+PUT  /api/projects/:id
+DELETE /api/projects/:id
 ```
 
 `POST /api/sql/generate` validates the canonical project model and generates initial DDL for PostgreSQL, MySQL and SQLite.
+Project endpoints persist the canonical project model as JSON files.
 
 ## Local Development
 
@@ -50,11 +56,6 @@ npm run test
 Future endpoints:
 
 ```txt
-GET    /api/projects
-POST   /api/projects
-GET    /api/projects/:id
-PUT    /api/projects/:id
-DELETE /api/projects/:id
 POST   /api/introspection/import
 ```
 

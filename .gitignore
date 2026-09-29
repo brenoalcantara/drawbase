@@ -31,6 +31,7 @@ tmp/
 
 # Docker/local runtime
 .docker/
+.playwright-mcp/
 
 # OS and editor files
 .DS_Store
@@ -39,4 +40,3 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
-
