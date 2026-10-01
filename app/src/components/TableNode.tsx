@@ -14,7 +14,7 @@ export function TableNode({ data, selected }: NodeProps) {
       </header>
       <div className="table-node__columns">
         {table.columns.map((column) => (
-          <div className="table-node__column" key={column.id}>
+          <div className="table-node__column" data-column-id={column.id} data-table-id={table.id} key={column.id}>
             <Handle
               className="column-handle column-handle--target"
               id={columnHandleId(table.id, column.id, 'target')}
@@ -38,4 +38,3 @@ export function TableNode({ data, selected }: NodeProps) {
     </section>
   );
 }
-

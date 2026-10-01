@@ -32,6 +32,13 @@ import {
   type ProjectSchema,
   type Table,
 } from './model/schema';
+import {
+  analyzeProject,
+  autoLayoutProject,
+  duplicateTable,
+  getRelationshipProblemSeverity,
+  type SchemaProblem,
+} from './model/projectOperations';
 import { projectToEdges, projectToNodes, relationshipFromConnection } from './model/reactFlowAdapter';
 
 const nodeTypes = {
@@ -66,6 +73,18 @@ type ImportFormState = {
   password: string;
   schemas: string;
   sqliteFilePath: string;
+};
+
+type CanvasContextMenuState = {
+  tableId: string;
+  columnId?: string;
+  x: number;
+  y: number;
+};
+
+type EditorFeedback = {
+  severity: 'error' | 'warning';
+  message: string;
 };
 
 type PositionNodeChange = Extract<NodeChange, { type: 'position' }> & {
@@ -103,10 +122,16 @@ export default function App() {
     warnings: [],
   });
   const [importForm, setImportForm] = useState<ImportFormState>(initialImportForm);
+  const [contextMenu, setContextMenu] = useState<CanvasContextMenuState | null>(null);
+  const [editorFeedback, setEditorFeedback] = useState<EditorFeedback | null>(null);
 
+  const schemaProblems = useMemo(() => analyzeProject(project), [project]);
+  const relationshipProblems = useMemo(() => getRelationshipProblemSeverity(schemaProblems), [schemaProblems]);
   const nodes = useMemo(() => projectToNodes(project, selectedTableId), [project, selectedTableId]);
-  const edges = useMemo(() => projectToEdges(project), [project]);
+  const edges = useMemo(() => projectToEdges(project, relationshipProblems), [project, relationshipProblems]);
   const selectedTable = project.tables.find((table) => table.id === selectedTableId) ?? project.tables[0] ?? null;
+  const contextTable = contextMenu ? project.tables.find((table) => table.id === contextMenu.tableId) ?? null : null;
+  const contextColumn = contextTable?.columns.find((column) => column.id === contextMenu?.columnId) ?? null;
 
   const refreshProjects = useCallback(async () => {
     setProjectState((current) => ({ ...current, status: 'loading', message: null }));
@@ -239,6 +264,21 @@ export default function App() {
     const relationship = relationshipFromConnection(connection.sourceHandle, connection.targetHandle);
 
     if (!relationship) {
+      setEditorFeedback({
+        severity: 'error',
+        message: 'Connect from a referenced column handle to a local foreign key column handle.',
+      });
+      return;
+    }
+
+    if (
+      relationship.localTableId === relationship.referencedTableId &&
+      relationship.localColumnIds[0] === relationship.referencedColumnIds[0]
+    ) {
+      setEditorFeedback({
+        severity: 'error',
+        message: 'A column cannot create a relationship to itself.',
+      });
       return;
     }
 
@@ -254,6 +294,7 @@ export default function App() {
       ],
     }));
     setSelectedTableId(relationship.localTableId);
+    setEditorFeedback(null);
   }, []);
 
   const addTable = useCallback(() => {
@@ -272,6 +313,11 @@ export default function App() {
         },
       };
     });
+  }, []);
+
+  const applyAutoLayout = useCallback(() => {
+    setProject((current) => autoLayoutProject(current));
+    setContextMenu(null);
   }, []);
 
   const createNewProject = useCallback(() => {
@@ -435,6 +481,88 @@ export default function App() {
     setSelectedTableId((current) => (current === tableId ? null : current));
   }, []);
 
+  const duplicateSelectedTable = useCallback(
+    (tableId?: string) => {
+      const targetTableId = tableId ?? selectedTable?.id;
+
+      if (!targetTableId) {
+        return;
+      }
+
+      setProject((current) => {
+        const result = duplicateTable(current, targetTableId);
+
+        if (!result) {
+          return current;
+        }
+
+        setSelectedTableId(result.tableId);
+        return result.project;
+      });
+      setContextMenu(null);
+    },
+    [selectedTable?.id],
+  );
+
+  const deleteSelectedTable = useCallback(
+    (tableId?: string) => {
+      const targetTableId = tableId ?? selectedTable?.id;
+
+      if (!targetTableId) {
+        return;
+      }
+
+      deleteTable(targetTableId);
+      setContextMenu(null);
+    },
+    [deleteTable, selectedTable?.id],
+  );
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (isEditableTarget(event.target)) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+      const modifierPressed = event.ctrlKey || event.metaKey;
+
+      if (modifierPressed && key === 's') {
+        event.preventDefault();
+        void saveCurrentProject();
+        return;
+      }
+
+      if (modifierPressed && key === 'l') {
+        event.preventDefault();
+        applyAutoLayout();
+        return;
+      }
+
+      if (modifierPressed && key === 'd') {
+        event.preventDefault();
+        duplicateSelectedTable();
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        setContextMenu(null);
+        return;
+      }
+
+      if ((event.key === 'Delete' || event.key === 'Backspace') && selectedTable) {
+        event.preventDefault();
+        deleteSelectedTable(selectedTable.id);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [applyAutoLayout, deleteSelectedTable, duplicateSelectedTable, saveCurrentProject, selectedTable]);
+
   const addColumn = useCallback((tableId: string) => {
     setProject((current) => ({
       ...current,
@@ -527,6 +655,18 @@ export default function App() {
           <button className="secondary-button" onClick={createNewProject} type="button">
             New
           </button>
+          <button className="secondary-button" onClick={applyAutoLayout} title="Auto layout (Ctrl/Cmd+L)" type="button">
+            Layout
+          </button>
+          <button
+            className="secondary-button"
+            disabled={!selectedTable}
+            onClick={() => duplicateSelectedTable()}
+            title="Duplicate selected table (Ctrl/Cmd+D)"
+            type="button"
+          >
+            Duplicate
+          </button>
           <button className="primary-button" disabled={projectState.status === 'saving'} onClick={saveCurrentProject} type="button">
             {projectState.status === 'saving' ? 'Saving' : 'Save'}
           </button>
@@ -580,13 +720,42 @@ export default function App() {
             nodes={nodes}
             onConnect={onConnect}
             onEdgesChange={onEdgesChange}
+            onNodeContextMenu={(event, node) => {
+              event.preventDefault();
+
+              const target = event.target instanceof HTMLElement ? event.target : null;
+              const columnElement = target?.closest('[data-column-id]') as HTMLElement | null;
+
+              setSelectedTableId(node.id);
+              setContextMenu({
+                tableId: node.id,
+                columnId: columnElement?.dataset.columnId,
+                x: event.clientX,
+                y: event.clientY,
+              });
+            }}
             onNodeClick={(_, node) => setSelectedTableId(node.id)}
             onNodesChange={onNodesChange}
+            onPaneClick={() => setContextMenu(null)}
+            aria-label="Schema canvas"
           >
             <Background color="#d7dce2" gap={24} />
             <Controls position="bottom-left" />
             <MiniMap pannable position="bottom-right" zoomable />
           </ReactFlow>
+          {contextMenu && contextTable ? (
+            <CanvasContextMenu
+              column={contextColumn}
+              menu={contextMenu}
+              onAddColumn={addColumn}
+              onClose={() => setContextMenu(null)}
+              onDeleteColumn={deleteColumn}
+              onDeleteTable={deleteSelectedTable}
+              onDuplicateTable={duplicateSelectedTable}
+              onLayout={applyAutoLayout}
+              table={contextTable}
+            />
+          ) : null}
         </section>
 
         <aside className="sidebar sidebar--right">
@@ -595,6 +764,7 @@ export default function App() {
               onAddColumn={addColumn}
               onDeleteColumn={deleteColumn}
               onDeleteTable={deleteTable}
+              onDuplicateTable={duplicateSelectedTable}
               onUpdateColumn={updateColumn}
               onUpdateTable={updateTable}
               table={selectedTable}
@@ -604,6 +774,12 @@ export default function App() {
               <PanelTitle title="Table" />
             </section>
           )}
+
+          <ProblemsPanel
+            feedback={editorFeedback}
+            onSelectTable={(tableId) => setSelectedTableId(tableId)}
+            problems={schemaProblems}
+          />
 
           <section className="sql-panel">
             <div className="panel-title-row">
@@ -803,10 +979,150 @@ function createImportConnection(form: ImportFormState): IntrospectionConnection 
   };
 }
 
+function CanvasContextMenu({
+  column,
+  menu,
+  onAddColumn,
+  onClose,
+  onDeleteColumn,
+  onDeleteTable,
+  onDuplicateTable,
+  onLayout,
+  table,
+}: {
+  column: Column | null;
+  menu: CanvasContextMenuState;
+  onAddColumn: (tableId: string) => void;
+  onClose: () => void;
+  onDeleteColumn: (tableId: string, columnId: string) => void;
+  onDeleteTable: (tableId?: string) => void;
+  onDuplicateTable: (tableId?: string) => void;
+  onLayout: () => void;
+  table: Table;
+}) {
+  return (
+    <div
+      className="context-menu"
+      onClick={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      role="menu"
+      style={{ left: menu.x, top: menu.y }}
+    >
+      <p className="context-menu__title">{column ? `${table.name}.${column.name}` : table.name}</p>
+      {column ? (
+        <button
+          className="context-menu__item danger-menu-item"
+          onClick={() => {
+            onDeleteColumn(table.id, column.id);
+            onClose();
+          }}
+          role="menuitem"
+          type="button"
+        >
+          Delete Column
+        </button>
+      ) : null}
+      <button
+        className="context-menu__item"
+        onClick={() => {
+          onAddColumn(table.id);
+          onClose();
+        }}
+        role="menuitem"
+        type="button"
+      >
+        Add Column
+      </button>
+      <button
+        className="context-menu__item"
+        onClick={() => {
+          onDuplicateTable(table.id);
+          onClose();
+        }}
+        role="menuitem"
+        type="button"
+      >
+        Duplicate Table
+      </button>
+      <button
+        className="context-menu__item"
+        onClick={() => {
+          onLayout();
+          onClose();
+        }}
+        role="menuitem"
+        type="button"
+      >
+        Auto Layout
+      </button>
+      <button
+        className="context-menu__item danger-menu-item"
+        onClick={() => {
+          onDeleteTable(table.id);
+          onClose();
+        }}
+        role="menuitem"
+        type="button"
+      >
+        Delete Table
+      </button>
+    </div>
+  );
+}
+
+function ProblemsPanel({
+  feedback,
+  onSelectTable,
+  problems,
+}: {
+  feedback: EditorFeedback | null;
+  onSelectTable: (tableId: string) => void;
+  problems: SchemaProblem[];
+}) {
+  const errorCount = problems.filter((problem) => problem.severity === 'error').length;
+  const warningCount = problems.length - errorCount;
+
+  return (
+    <section className="problems-panel">
+      <div className="panel-title-row">
+        <PanelTitle title="Problems" />
+        <span className={errorCount > 0 ? 'problem-count problem-count--error' : 'problem-count'}>
+          {errorCount} errors / {warningCount} warnings
+        </span>
+      </div>
+
+      {feedback ? <p className={`editor-feedback editor-feedback--${feedback.severity}`}>{feedback.message}</p> : null}
+
+      {problems.length === 0 ? (
+        <p className="empty-state">No schema problems</p>
+      ) : (
+        <div className="problem-list">
+          {problems.map((problem) => (
+            <button
+              className={`problem-item problem-item--${problem.severity}`}
+              key={problem.id}
+              onClick={() => {
+                if (problem.target?.tableId) {
+                  onSelectTable(problem.target.tableId);
+                }
+              }}
+              type="button"
+            >
+              <strong>{problem.title}</strong>
+              <span>{problem.message}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function TableInspector({
   onAddColumn,
   onDeleteColumn,
   onDeleteTable,
+  onDuplicateTable,
   onUpdateColumn,
   onUpdateTable,
   table,
@@ -814,6 +1130,7 @@ function TableInspector({
   onAddColumn: (tableId: string) => void;
   onDeleteColumn: (tableId: string, columnId: string) => void;
   onDeleteTable: (tableId: string) => void;
+  onDuplicateTable: (tableId?: string) => void;
   onUpdateColumn: (tableId: string, columnId: string, update: Partial<Column>) => void;
   onUpdateTable: (tableId: string, update: Partial<Pick<Table, 'name' | 'schema'>>) => void;
   table: Table;
@@ -822,9 +1139,14 @@ function TableInspector({
     <section className="inspector-section">
       <div className="panel-title-row">
         <PanelTitle title="Table" />
-        <button className="icon-button danger-button" onClick={() => onDeleteTable(table.id)} title="Delete table" type="button">
-          x
-        </button>
+        <div className="inspector-actions">
+          <button className="secondary-button" onClick={() => onDuplicateTable(table.id)} title="Duplicate table" type="button">
+            Duplicate
+          </button>
+          <button className="icon-button danger-button" onClick={() => onDeleteTable(table.id)} title="Delete table" type="button">
+            x
+          </button>
+        </div>
       </div>
 
       <label className="field">
@@ -1056,6 +1378,16 @@ function statusLabel(status: SqlState['status']) {
     case 'error':
       return 'Offline';
   }
+}
+
+function isEditableTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tagName = target.tagName.toLowerCase();
+
+  return target.isContentEditable || tagName === 'input' || tagName === 'select' || tagName === 'textarea';
 }
 
 function isPositionNodeChange(change: NodeChange): change is PositionNodeChange {

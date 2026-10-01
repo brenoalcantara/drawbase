@@ -298,6 +298,24 @@ Resultado esperado:
 
 - Editor confortavel para uso real em projetos pequenos e medios.
 
+Progresso atual:
+
+- Auto-layout inicial implementado no frontend com Dagre, organizando tabelas por dependencias de relacionamentos.
+- Zoom controls, mini-map e background mantidos no canvas React Flow.
+- Atalhos de teclado adicionados para salvar, auto-layout, duplicar tabela, excluir tabela selecionada e fechar menu.
+- Menu de contexto adicionado para tabela e coluna no canvas.
+- Duplicacao de tabela adicionada com novos ids para tabela, colunas e indices.
+- Renomeacao inline mantida no inspector por inputs editaveis.
+- Relacionamentos com problemas agora recebem feedback visual no canvas.
+- Painel de problemas do schema adicionado na lateral direita.
+- Melhorias basicas de acessibilidade adicionadas em botoes, canvas e menu.
+
+Pendente:
+
+- Ajustar parametros do Dagre e avaliar ELK futuramente caso schemas maiores exijam layouts mais sofisticados.
+- Evoluir menu de contexto de coluna com acoes especificas como duplicar coluna, alternar PK/NN/UQ e focar renomeacao.
+- Adicionar testes automatizados especificos para as operacoes de layout, duplicacao e analise de problemas.
+
 ## Fase 9 - Exportacao
 
 Objetivo: permitir saidas uteis para documentacao e uso externo.

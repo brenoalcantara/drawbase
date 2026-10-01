@@ -1,5 +1,6 @@
 import type { Edge, Node } from '@xyflow/react';
 
+import type { SchemaProblemSeverity } from './projectOperations';
 import type { ProjectSchema, Relationship, Table } from './schema';
 
 export type ColumnHandleKind = 'source' | 'target';
@@ -49,7 +50,7 @@ export function projectToNodes(project: ProjectSchema, selectedTableId: string |
   });
 }
 
-export function projectToEdges(project: ProjectSchema): Edge[] {
+export function projectToEdges(project: ProjectSchema, relationshipProblems: Map<string, SchemaProblemSeverity> = new Map()): Edge[] {
   return project.relationships.map((relationship) => ({
     id: relationship.id,
     source: relationship.referencedTableId,
@@ -57,7 +58,9 @@ export function projectToEdges(project: ProjectSchema): Edge[] {
     sourceHandle: columnHandleId(relationship.referencedTableId, relationship.referencedColumnIds[0], 'source'),
     targetHandle: columnHandleId(relationship.localTableId, relationship.localColumnIds[0], 'target'),
     animated: false,
-    className: 'relationship-edge',
+    className: relationshipProblems.has(relationship.id)
+      ? `relationship-edge relationship-edge--${relationshipProblems.get(relationship.id)}`
+      : 'relationship-edge',
   }));
 }
 
