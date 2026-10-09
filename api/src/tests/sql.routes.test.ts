@@ -1,13 +1,21 @@
+import { mkdtemp, readFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+
 import type { FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createApp } from '../app';
 
 let app: FastifyInstance | undefined;
+const originalExecutionLogDir = process.env.SQL_EXECUTION_LOG_DIR;
+const originalSqliteDataDir = process.env.SQLITE_DATA_DIR;
 
 afterEach(async () => {
   await app?.close();
   app = undefined;
+  process.env.SQL_EXECUTION_LOG_DIR = originalExecutionLogDir;
+  process.env.SQLITE_DATA_DIR = originalSqliteDataDir;
 });
 
 const project = {
@@ -69,6 +77,104 @@ describe('sql routes', () => {
       error: {
         code: 'VALIDATION_ERROR',
       },
+    });
+  });
+
+  it('requires explicit confirmation before executing SQL', async () => {
+    app = await createApp({ logger: false });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/sql/execute',
+      payload: {
+        project,
+        targetId: 'sqlite-sandbox',
+        confirmation: 'RUN',
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: 'VALIDATION_ERROR',
+      },
+    });
+  });
+
+  it('executes generated SQL only against fixed test targets and writes an execution log', async () => {
+    const dataDir = await mkdtemp(path.join(os.tmpdir(), 'drawbase-sqlite-'));
+    const logDir = await mkdtemp(path.join(os.tmpdir(), 'drawbase-sql-log-'));
+    process.env.SQLITE_DATA_DIR = dataDir;
+    process.env.SQL_EXECUTION_LOG_DIR = logDir;
+    app = await createApp({ logger: false });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/sql/execute',
+      payload: {
+        project,
+        targetId: 'sqlite-sandbox',
+        confirmation: 'EXECUTE_DDL',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      target: {
+        id: 'sqlite-sandbox',
+        dialect: 'sqlite',
+      },
+      execution: {
+        status: 'executed',
+        statementsAttempted: 0,
+      },
+    });
+
+    const log = await readFile(path.join(logDir, 'sql-execution.jsonl'), 'utf8');
+    expect(log).toContain('"targetId":"sqlite-sandbox"');
+    expect(log).toContain('"status":"executed"');
+  });
+
+  it('blocks generated SQL that contains statements outside the execution policy', async () => {
+    app = await createApp({ logger: false });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/sql/execute',
+      payload: {
+        project: {
+          ...project,
+          tables: [
+            {
+              id: 'table_malicious',
+              name: 'malicious',
+              columns: [
+                {
+                  id: 'column_payload',
+                  name: 'payload',
+                  type: { kind: 'custom', raw: 'TEXT); DROP TABLE users; --' },
+                  nullable: true,
+                  primaryKey: false,
+                  unique: false,
+                },
+              ],
+              indexes: [],
+            },
+          ],
+        },
+        targetId: 'sqlite-sandbox',
+        confirmation: 'EXECUTE_DDL',
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: 'SQL_EXECUTION_BLOCKED',
+      },
+    });
+    expect(response.json().error.details.blockedStatements[0]).toMatchObject({
+      reason: 'Only CREATE TABLE and CREATE INDEX statements are allowed.',
     });
   });
 });

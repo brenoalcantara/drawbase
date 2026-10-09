@@ -51,17 +51,20 @@ export function projectToNodes(project: ProjectSchema, selectedTableId: string |
 }
 
 export function projectToEdges(project: ProjectSchema, relationshipProblems: Map<string, SchemaProblemSeverity> = new Map()): Edge[] {
-  return project.relationships.map((relationship) => ({
-    id: relationship.id,
-    source: relationship.referencedTableId,
-    target: relationship.localTableId,
-    sourceHandle: columnHandleId(relationship.referencedTableId, relationship.referencedColumnIds[0], 'source'),
-    targetHandle: columnHandleId(relationship.localTableId, relationship.localColumnIds[0], 'target'),
-    animated: false,
-    className: relationshipProblems.has(relationship.id)
-      ? `relationship-edge relationship-edge--${relationshipProblems.get(relationship.id)}`
-      : 'relationship-edge',
-  }));
+  return project.relationships.map((relationship) => {
+    const severity = relationshipProblems.get(relationship.id);
+
+    return {
+      id: relationship.id,
+      source: relationship.referencedTableId,
+      target: relationship.localTableId,
+      sourceHandle: columnHandleId(relationship.referencedTableId, relationship.referencedColumnIds[0], 'source'),
+      targetHandle: columnHandleId(relationship.localTableId, relationship.localColumnIds[0], 'target'),
+      animated: false,
+      className: severity ? `relationship-edge relationship-edge--${severity}` : 'relationship-edge',
+      style: relationshipEdgeStyle(severity),
+    };
+  });
 }
 
 export function relationshipFromConnection(
@@ -85,4 +88,16 @@ export function relationshipFromConnection(
     onDelete: 'noAction',
     onUpdate: 'noAction',
   };
+}
+
+function relationshipEdgeStyle(severity: SchemaProblemSeverity | undefined): Edge['style'] {
+  if (severity === 'error') {
+    return { stroke: '#b42318', strokeDasharray: '8 5', strokeWidth: 2.5 };
+  }
+
+  if (severity === 'warning') {
+    return { stroke: '#9a6700', strokeDasharray: '8 5', strokeWidth: 2 };
+  }
+
+  return { stroke: '#0f766e', strokeWidth: 2 };
 }

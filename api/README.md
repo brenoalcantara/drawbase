@@ -27,6 +27,7 @@ The backend will be responsible for:
 ```txt
 GET  /health
 POST /api/sql/generate
+POST /api/sql/execute
 GET  /api/projects
 POST /api/projects
 GET  /api/projects/:id
@@ -36,8 +37,19 @@ POST /api/introspection/import
 ```
 
 `POST /api/sql/generate` validates the canonical project model and generates initial DDL for PostgreSQL, MySQL and SQLite.
+`POST /api/sql/execute` executes generated DDL only against fixed local test targets after explicit confirmation.
 Project endpoints persist the canonical project model as JSON files.
 `POST /api/introspection/import` imports allowlisted PostgreSQL, MySQL and SQLite sources into the canonical project model.
+
+## SQL Execution Safety
+
+SQL execution is intentionally limited:
+
+- the request must send `confirmation: "EXECUTE_DDL"`;
+- targets are fixed to `postgres-test`, `mysql-test` and `sqlite-sandbox`;
+- arbitrary connection strings are not accepted;
+- only generated `CREATE TABLE` and `CREATE INDEX` statements are allowed;
+- execution attempts are appended to a local JSONL log file.
 
 ## Local Development
 

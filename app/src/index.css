@@ -194,6 +194,23 @@ select:focus {
   color: var(--danger);
 }
 
+.danger-action-button {
+  align-items: center;
+  background: var(--danger);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: white;
+  display: inline-flex;
+  font-weight: 800;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.danger-action-button:hover {
+  background: #8f1d14;
+}
+
 .workspace {
   display: grid;
   grid-template-columns: 260px minmax(440px, 1fr) 400px;
@@ -217,7 +234,7 @@ select:focus {
 .sidebar--right {
   border-left: 1px solid var(--border);
   display: grid;
-  grid-template-rows: minmax(260px, 1fr) minmax(160px, 26vh) minmax(220px, 34vh);
+  grid-template-rows: minmax(250px, 1fr) minmax(120px, 18vh) minmax(360px, 44vh);
 }
 
 .canvas-area {
@@ -268,9 +285,29 @@ select:focus {
   min-width: 0;
 }
 
+.hidden-file-input {
+  display: none;
+}
+
 .import-panel {
   border-bottom: 1px solid var(--border);
   padding-bottom: 16px;
+}
+
+.export-panel {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 16px;
+}
+
+.export-actions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.export-actions .secondary-button {
+  min-width: 0;
+  padding: 0 8px;
 }
 
 .compact-field {
@@ -447,8 +484,9 @@ select:focus {
 .sql-panel {
   border-top: 1px solid var(--border);
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto minmax(120px, 1fr) auto auto;
   min-height: 0;
+  overflow: auto;
   padding: 14px;
 }
 
@@ -501,6 +539,43 @@ select:focus {
 
 .warning-list p {
   margin: 0;
+}
+
+.execution-panel {
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.execution-form {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.execution-form .danger-action-button {
+  grid-column: 1 / -1;
+}
+
+.execution-result {
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  display: grid;
+  font-family: var(--mono);
+  font-size: 11px;
+  gap: 4px;
+  padding: 8px;
+}
+
+.execution-result span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .problems-panel {

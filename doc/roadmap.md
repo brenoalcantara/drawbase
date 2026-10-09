@@ -333,6 +333,22 @@ Resultado esperado:
 
 - DrawBase se torna util tambem como ferramenta de documentacao.
 
+Progresso atual:
+
+- Download de SQL `.sql` implementado no frontend.
+- Copia do SQL para clipboard implementada com fallback local.
+- Exportacao do diagrama como PNG implementada com `html-to-image`.
+- Exportacao do projeto como JSON implementada.
+- Importacao de projeto a partir de JSON implementada com validacao estrutural basica.
+- Exportacao de documentacao Markdown do schema implementada.
+- Painel `Export` adicionado na lateral esquerda do editor.
+
+Pendente:
+
+- Compartilhar a validacao Zod do modelo canonico entre API e frontend para importar JSON com as mesmas regras do backend.
+- Refinar exportacao PNG para opcao de diagrama inteiro vs. viewport atual.
+- Adicionar testes automatizados para serializacao Markdown e validacao de JSON importado.
+
 ## Fase 10 - Execucao Segura de SQL
 
 Objetivo: permitir testar SQL gerado sem comprometer seguranca.
@@ -352,6 +368,26 @@ Resultado esperado:
 
 - Usuario consegue validar DDL em ambiente controlado.
 - Execucao direta em banco real permanece protegida.
+
+Progresso atual:
+
+- Politica inicial de execucao definida: somente `CREATE TABLE` e `CREATE INDEX`.
+- Endpoint `POST /api/sql/execute` implementado.
+- Confirmacao explicita `EXECUTE_DDL` obrigatoria na API e no frontend.
+- Execucao limitada aos alvos locais `postgres-test`, `mysql-test` e `sqlite-sandbox`.
+- Connection strings livres nao sao aceitas para execucao.
+- Preview SQL existente reaproveitado antes da execucao.
+- Erros de banco sao capturados e exibidos no frontend.
+- Tentativas de execucao sao registradas em `sql-execution.jsonl`.
+- Painel `Execute` adicionado ao painel SQL do frontend.
+- Testes automatizados adicionados para confirmacao, politica de bloqueio e log de execucao.
+
+Pendente:
+
+- Criar reset/limpeza controlada dos bancos de teste entre execucoes.
+- Exibir historico de execucoes no frontend.
+- Melhorar isolamento do alvo MySQL, que nao possui rollback real para DDL.
+- Assinar/hashar o SQL confirmado para garantir que o preview visto e o SQL executado sejam exatamente iguais.
 
 ## Fase 11 - Qualidade Open Source
 

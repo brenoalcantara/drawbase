@@ -45,6 +45,7 @@ services:
       PORT: 3001
       POSTGRES_TEST_URL: postgresql://drawbase:drawbase_dev_password@postgres-test:5432/drawbase_dev
       PROJECTS_DATA_DIR: ${PROJECTS_DATA_DIR:-/data/projects}
+      SQL_EXECUTION_LOG_DIR: ${SQL_EXECUTION_LOG_DIR:-/data/projects}
       SQLITE_DATA_DIR: /data/sqlite
     healthcheck:
       test:

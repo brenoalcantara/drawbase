@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import {
   Background,
   Controls,
@@ -18,7 +18,13 @@ import {
   saveProject as persistProject,
   type ProjectSummary,
 } from './api/projects';
-import { generateSql, type SqlGenerateResponse } from './api/sql';
+import {
+  executeSql,
+  generateSql,
+  type SqlExecuteResponse,
+  type SqlExecutionTargetId,
+  type SqlGenerateResponse,
+} from './api/sql';
 import { TableNode } from './components/TableNode';
 import {
   columnTypeFromKind,
@@ -39,6 +45,7 @@ import {
   getRelationshipProblemSeverity,
   type SchemaProblem,
 } from './model/projectOperations';
+import { parseProjectSchemaJson, projectToMarkdown } from './model/projectExport';
 import { projectToEdges, projectToNodes, relationshipFromConnection } from './model/reactFlowAdapter';
 
 const nodeTypes = {
@@ -87,6 +94,17 @@ type EditorFeedback = {
   message: string;
 };
 
+type ExportState = {
+  status: 'idle' | 'working' | 'ready' | 'error';
+  message: string | null;
+};
+
+type SqlExecutionState = {
+  status: 'idle' | 'executing' | 'ready' | 'error';
+  message: string | null;
+  response: SqlExecuteResponse | null;
+};
+
 type PositionNodeChange = Extract<NodeChange, { type: 'position' }> & {
   position: { x: number; y: number };
 };
@@ -103,6 +121,8 @@ const initialImportForm: ImportFormState = {
 };
 
 export default function App() {
+  const canvasAreaRef = useRef<HTMLElement | null>(null);
+  const projectFileInputRef = useRef<HTMLInputElement | null>(null);
   const [project, setProject] = useState<ProjectSchema>(() => createInitialProject());
   const [selectedTableId, setSelectedTableId] = useState<string | null>('table_users');
   const [sqlState, setSqlState] = useState<SqlState>({
@@ -124,6 +144,14 @@ export default function App() {
   const [importForm, setImportForm] = useState<ImportFormState>(initialImportForm);
   const [contextMenu, setContextMenu] = useState<CanvasContextMenuState | null>(null);
   const [editorFeedback, setEditorFeedback] = useState<EditorFeedback | null>(null);
+  const [exportState, setExportState] = useState<ExportState>({ status: 'idle', message: null });
+  const [sqlExecutionState, setSqlExecutionState] = useState<SqlExecutionState>({
+    status: 'idle',
+    message: null,
+    response: null,
+  });
+  const [sqlExecutionTargetId, setSqlExecutionTargetId] = useState<SqlExecutionTargetId>('postgres-test');
+  const [sqlExecutionConfirmation, setSqlExecutionConfirmation] = useState('');
 
   const schemaProblems = useMemo(() => analyzeProject(project), [project]);
   const relationshipProblems = useMemo(() => getRelationshipProblemSeverity(schemaProblems), [schemaProblems]);
@@ -132,6 +160,11 @@ export default function App() {
   const selectedTable = project.tables.find((table) => table.id === selectedTableId) ?? project.tables[0] ?? null;
   const contextTable = contextMenu ? project.tables.find((table) => table.id === contextMenu.tableId) ?? null : null;
   const contextColumn = contextTable?.columns.find((column) => column.id === contextMenu?.columnId) ?? null;
+
+  useEffect(() => {
+    setSqlExecutionTargetId(defaultExecutionTarget(project.dialect));
+    setSqlExecutionConfirmation('');
+  }, [project.dialect]);
 
   const refreshProjects = useCallback(async () => {
     setProjectState((current) => ({ ...current, status: 'loading', message: null }));
@@ -451,6 +484,139 @@ export default function App() {
     }
   }, [importForm]);
 
+  const copySqlToClipboard = useCallback(async () => {
+    if (!sqlState.sql.trim()) {
+      setExportState({ status: 'error', message: 'No SQL available to copy.' });
+      return;
+    }
+
+    setExportState({ status: 'working', message: 'Copying SQL' });
+
+    try {
+      await copyTextToClipboard(sqlState.sql);
+      setExportState({ status: 'ready', message: 'SQL copied' });
+    } catch (error) {
+      setExportState({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'SQL copy failed.',
+      });
+    }
+  }, [sqlState.sql]);
+
+  const downloadSqlFile = useCallback(() => {
+    if (!sqlState.sql.trim()) {
+      setExportState({ status: 'error', message: 'No SQL available to download.' });
+      return;
+    }
+
+    downloadTextFile(`${safeFileName(project.name)}.sql`, sqlState.sql, 'text/sql;charset=utf-8');
+    setExportState({ status: 'ready', message: 'SQL downloaded' });
+  }, [project.name, sqlState.sql]);
+
+  const downloadProjectJson = useCallback(() => {
+    downloadTextFile(
+      `${safeFileName(project.name)}.drawbase.json`,
+      `${JSON.stringify(project, null, 2)}\n`,
+      'application/json;charset=utf-8',
+    );
+    setExportState({ status: 'ready', message: 'Project JSON downloaded' });
+  }, [project]);
+
+  const openProjectJsonImport = useCallback(() => {
+    projectFileInputRef.current?.click();
+  }, []);
+
+  const importProjectJsonFile = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    setExportState({ status: 'working', message: 'Importing JSON' });
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as unknown;
+      const nextProject = parseProjectSchemaJson(parsed);
+
+      setProject(nextProject);
+      setSelectedTableId(nextProject.tables[0]?.id ?? null);
+      setContextMenu(null);
+      setExportState({ status: 'ready', message: 'Project JSON imported' });
+    } catch (error) {
+      setExportState({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Project JSON import failed.',
+      });
+    }
+  }, []);
+
+  const downloadMarkdownFile = useCallback(() => {
+    const markdown = projectToMarkdown(project, schemaProblems);
+
+    downloadTextFile(`${safeFileName(project.name)}.md`, markdown, 'text/markdown;charset=utf-8');
+    setExportState({ status: 'ready', message: 'Markdown downloaded' });
+  }, [project, schemaProblems]);
+
+  const downloadDiagramPng = useCallback(async () => {
+    setContextMenu(null);
+    setExportState({ status: 'working', message: 'Rendering PNG' });
+
+    try {
+      await waitForFrame();
+
+      const diagramElement = canvasAreaRef.current?.querySelector('.react-flow');
+
+      if (!(diagramElement instanceof HTMLElement)) {
+        throw new Error('Diagram canvas was not found.');
+      }
+
+      const { toPng } = await import('html-to-image');
+      const dataUrl = await toPng(diagramElement, {
+        backgroundColor: '#f6f8fb',
+        cacheBust: true,
+        filter: shouldExportDiagramNode,
+        pixelRatio: 2,
+      });
+
+      downloadDataUrl(`${safeFileName(project.name)}-diagram.png`, dataUrl);
+      setExportState({ status: 'ready', message: 'Diagram PNG downloaded' });
+    } catch (error) {
+      setExportState({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Diagram PNG export failed.',
+      });
+    }
+  }, [project.name]);
+
+  const executeSqlInTestTarget = useCallback(async () => {
+    setSqlExecutionState({ status: 'executing', message: 'Executing SQL', response: null });
+
+    try {
+      const response = await executeSql(project, sqlExecutionTargetId, sqlExecutionConfirmation);
+      const message =
+        response.execution.status === 'executed'
+          ? `Executed ${response.execution.statementsAttempted} statements`
+          : response.execution.error?.message ?? 'SQL execution failed';
+
+      setSqlExecutionState({
+        status: response.execution.status === 'executed' ? 'ready' : 'error',
+        message,
+        response,
+      });
+    } catch (error) {
+      setSqlExecutionState({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'SQL execution failed.',
+        response: null,
+      });
+    } finally {
+      setSqlExecutionConfirmation('');
+    }
+  }, [project, sqlExecutionConfirmation, sqlExecutionTargetId]);
+
   const updateProjectName = useCallback((name: string) => {
     setProject((current) => ({ ...current, name }));
   }, []);
@@ -678,6 +844,14 @@ export default function App() {
 
       <section className="workspace">
         <aside className="sidebar sidebar--left">
+          <input
+            accept="application/json,.json"
+            className="hidden-file-input"
+            onChange={importProjectJsonFile}
+            ref={projectFileInputRef}
+            type="file"
+          />
+
           <ProjectsPanel
             currentProjectId={project.id}
             message={projectState.message}
@@ -693,6 +867,17 @@ export default function App() {
             onImport={importSchema}
             onUpdate={updateImportForm}
             state={importState}
+          />
+
+          <ExportPanel
+            onCopySql={copySqlToClipboard}
+            onDownloadJson={downloadProjectJson}
+            onDownloadMarkdown={downloadMarkdownFile}
+            onDownloadPng={downloadDiagramPng}
+            onDownloadSql={downloadSqlFile}
+            onImportJson={openProjectJsonImport}
+            sqlReady={Boolean(sqlState.sql.trim())}
+            state={exportState}
           />
 
           <section className="sidebar-section">
@@ -713,7 +898,7 @@ export default function App() {
           </section>
         </aside>
 
-        <section className="canvas-area">
+        <section className="canvas-area" ref={canvasAreaRef}>
           <ReactFlow
             edges={edges}
             nodeTypes={nodeTypes}
@@ -796,6 +981,15 @@ export default function App() {
                 ))}
               </div>
             ) : null}
+            <SqlExecutionPanel
+              confirmation={sqlExecutionConfirmation}
+              onConfirmationChange={setSqlExecutionConfirmation}
+              onExecute={executeSqlInTestTarget}
+              onTargetChange={setSqlExecutionTargetId}
+              sqlReady={Boolean(sqlState.sql.trim()) && sqlState.status === 'ready'}
+              state={sqlExecutionState}
+              targetId={sqlExecutionTargetId}
+            />
           </section>
         </aside>
       </section>
@@ -884,6 +1078,59 @@ function ImportPanel({
             <p key={`${warning.code}-${warning.message}`}>{warning.message}</p>
           ))}
         </div>
+      ) : null}
+    </section>
+  );
+}
+
+function ExportPanel({
+  onCopySql,
+  onDownloadJson,
+  onDownloadMarkdown,
+  onDownloadPng,
+  onDownloadSql,
+  onImportJson,
+  sqlReady,
+  state,
+}: {
+  onCopySql: () => void;
+  onDownloadJson: () => void;
+  onDownloadMarkdown: () => void;
+  onDownloadPng: () => void;
+  onDownloadSql: () => void;
+  onImportJson: () => void;
+  sqlReady: boolean;
+  state: ExportState;
+}) {
+  const working = state.status === 'working';
+
+  return (
+    <section className="sidebar-section export-panel">
+      <PanelTitle title="Export" />
+
+      <div className="export-actions">
+        <button className="secondary-button" disabled={!sqlReady || working} onClick={onCopySql} type="button">
+          Copy SQL
+        </button>
+        <button className="secondary-button" disabled={!sqlReady || working} onClick={onDownloadSql} type="button">
+          SQL
+        </button>
+        <button className="secondary-button" disabled={working} onClick={onDownloadPng} type="button">
+          PNG
+        </button>
+        <button className="secondary-button" disabled={working} onClick={onDownloadMarkdown} type="button">
+          Markdown
+        </button>
+        <button className="secondary-button" disabled={working} onClick={onDownloadJson} type="button">
+          JSON
+        </button>
+        <button className="secondary-button" disabled={working} onClick={onImportJson} type="button">
+          Import JSON
+        </button>
+      </div>
+
+      {state.message ? (
+        <p className={state.status === 'error' ? 'sidebar-message sidebar-message--error' : 'sidebar-message'}>{state.message}</p>
       ) : null}
     </section>
   );
@@ -1114,6 +1361,73 @@ function ProblemsPanel({
           ))}
         </div>
       )}
+    </section>
+  );
+}
+
+function SqlExecutionPanel({
+  confirmation,
+  onConfirmationChange,
+  onExecute,
+  onTargetChange,
+  sqlReady,
+  state,
+  targetId,
+}: {
+  confirmation: string;
+  onConfirmationChange: (value: string) => void;
+  onExecute: () => void;
+  onTargetChange: (targetId: SqlExecutionTargetId) => void;
+  sqlReady: boolean;
+  state: SqlExecutionState;
+  targetId: SqlExecutionTargetId;
+}) {
+  const canExecute = sqlReady && confirmation === 'EXECUTE_DDL' && state.status !== 'executing';
+
+  return (
+    <section className="execution-panel">
+      <div className="panel-title-row">
+        <PanelTitle title="Execute" />
+        <span className={`status-pill status-pill--${state.status === 'executing' ? 'loading' : state.status}`}>
+          {executionStatusLabel(state.status)}
+        </span>
+      </div>
+
+      <div className="execution-form">
+        <label className="field compact-field">
+          <span>Target</span>
+          <select onChange={(event) => onTargetChange(event.target.value as SqlExecutionTargetId)} value={targetId}>
+            <option value="postgres-test">PostgreSQL test</option>
+            <option value="mysql-test">MySQL test</option>
+            <option value="sqlite-sandbox">SQLite sandbox</option>
+          </select>
+        </label>
+
+        <label className="field compact-field">
+          <span>Confirmation</span>
+          <input
+            onChange={(event) => onConfirmationChange(event.target.value)}
+            placeholder="EXECUTE_DDL"
+            value={confirmation}
+          />
+        </label>
+
+        <button className="danger-action-button" disabled={!canExecute} onClick={onExecute} type="button">
+          Execute SQL
+        </button>
+      </div>
+
+      {state.message ? (
+        <p className={state.status === 'error' ? 'sidebar-message sidebar-message--error' : 'sidebar-message'}>{state.message}</p>
+      ) : null}
+
+      {state.response ? (
+        <div className="execution-result">
+          <span>{state.response.target.label}</span>
+          <span>{state.response.execution.durationMs}ms</span>
+          <span>{state.response.execution.logId}</span>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -1380,6 +1694,31 @@ function statusLabel(status: SqlState['status']) {
   }
 }
 
+function executionStatusLabel(status: SqlExecutionState['status']) {
+  switch (status) {
+    case 'idle':
+      return 'Idle';
+    case 'executing':
+      return 'Executing';
+    case 'ready':
+      return 'Done';
+    case 'error':
+      return 'Failed';
+  }
+}
+
+function defaultExecutionTarget(dialect: DatabaseDialect): SqlExecutionTargetId {
+  if (dialect === 'mysql') {
+    return 'mysql-test';
+  }
+
+  if (dialect === 'sqlite') {
+    return 'sqlite-sandbox';
+  }
+
+  return 'postgres-test';
+}
+
 function isEditableTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) {
     return false;
@@ -1388,6 +1727,74 @@ function isEditableTarget(target: EventTarget | null) {
   const tagName = target.tagName.toLowerCase();
 
   return target.isContentEditable || tagName === 'input' || tagName === 'select' || tagName === 'textarea';
+}
+
+function downloadTextFile(fileName: string, content: string, type: string) {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+
+  downloadDataUrl(fileName, url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function downloadDataUrl(fileName: string, url: string) {
+  const link = document.createElement('a');
+
+  link.download = fileName;
+  link.href = url;
+  link.rel = 'noopener';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+async function copyTextToClipboard(text: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textArea = document.createElement('textarea');
+
+  textArea.value = text;
+  textArea.setAttribute('readonly', '');
+  textArea.style.left = '-9999px';
+  textArea.style.position = 'fixed';
+  document.body.appendChild(textArea);
+  textArea.select();
+
+  try {
+    if (!document.execCommand('copy')) {
+      throw new Error('Clipboard copy failed.');
+    }
+  } finally {
+    textArea.remove();
+  }
+}
+
+function safeFileName(value: string) {
+  return (
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'drawbase-project'
+  );
+}
+
+function shouldExportDiagramNode(node: HTMLElement) {
+  const ignoredClasses = ['context-menu', 'react-flow__controls', 'react-flow__minimap', 'react-flow__panel', 'react-flow__attribution'];
+
+  if (!(node instanceof Element)) {
+    return true;
+  }
+
+  return !ignoredClasses.some((className) => node.classList?.contains(className));
+}
+
+function waitForFrame() {
+  return new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
 }
 
 function isPositionNodeChange(change: NodeChange): change is PositionNodeChange {

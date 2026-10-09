@@ -195,6 +195,36 @@ Saida:
 - avisos
 - erros de validacao
 
+### Execucao Segura de SQL
+
+Endpoint inicial:
+
+```txt
+POST /api/sql/execute
+```
+
+Entrada:
+
+- `ProjectSchema`
+- alvo fixo de teste: `postgres-test`, `mysql-test` ou `sqlite-sandbox`
+- confirmacao literal `EXECUTE_DDL`
+
+Saida:
+
+- SQL gerado para o dialeto do alvo
+- avisos
+- resultado de execucao
+- erro capturado do banco, quando houver
+- identificador de log local
+
+Politica inicial:
+
+- a API nao aceita connection string livre para execucao;
+- somente alvos locais de teste podem executar SQL;
+- somente `CREATE TABLE` e `CREATE INDEX` sao permitidos;
+- comandos fora da politica sao bloqueados antes de abrir conexao;
+- tentativas sao registradas em arquivo JSONL local.
+
 ### Engenharia Reversa
 
 Endpoint previsto:

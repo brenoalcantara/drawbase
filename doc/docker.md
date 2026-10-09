@@ -52,9 +52,17 @@ As credenciais incluidas no exemplo sao apenas para desenvolvimento local.
 
 `INTROSPECTION_ALLOWED_HOSTS` controla quais hosts a API aceita para engenharia reversa. O padrao permite apenas `localhost`, `127.0.0.1`, `postgres-test` e `mysql-test`.
 
+`POSTGRES_TEST_URL` e `MYSQL_TEST_URL` sao usados pela API para executar SQL somente nos bancos de teste do Compose.
+
+`SQLITE_DATA_DIR` guarda o arquivo `execution-sandbox.sqlite` usado pelo alvo SQLite sandbox.
+
+`SQL_EXECUTION_LOG_DIR`, quando definido, altera o diretorio do log `sql-execution.jsonl`. Sem essa variavel, o log usa `PROJECTS_DATA_DIR`.
+
 ## Seguranca
 
 - Os bancos de teste nao sao expostos em interfaces publicas.
 - Os containers de `app` e `api` rodam como usuario nao-root.
 - O socket do Docker nao e montado em nenhum container.
-- SQL gerado pelo DrawBase continua sendo preview; a API ainda nao executa DDL automaticamente.
+- SQL gerado pelo DrawBase so e executado por acao explicita do usuario, com confirmacao `EXECUTE_DDL`.
+- A API nao aceita connection string livre para execucao de SQL.
+- A politica inicial de execucao permite apenas `CREATE TABLE` e `CREATE INDEX` nos alvos locais de teste.
