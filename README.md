@@ -1,139 +1,145 @@
 # DrawBase
 
-DrawBase is an open source web application for visual database modeling. The goal is to provide a simple drawing experience inspired by MySQL Workbench, while supporting multiple relational database systems from a browser-based, Docker-friendly environment.
+[![CI](https://github.com/brenoalcantara/drawbase/actions/workflows/ci.yml/badge.svg)](https://github.com/brenoalcantara/drawbase/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/brenoalcantara/drawbase/actions/workflows/codeql.yml/badge.svg)](https://github.com/brenoalcantara/drawbase/actions/workflows/codeql.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-The initial database targets are:
+DrawBase is an open source web application for visual relational database modeling. It aims to provide a drawing experience inspired by MySQL Workbench while keeping the project browser-based, Docker-friendly and independent from any single database vendor.
 
-- PostgreSQL
-- MySQL
-- SQLite
+The initial database targets are PostgreSQL, MySQL and SQLite. The canonical model and adapter boundaries are designed to support more database systems later.
 
-## Status
+## Project status
 
-DrawBase is in the early MVP stage.
+DrawBase is pre-release MVP software. The current implementation includes:
 
-Current state:
+- a React Flow editor for tables, columns, indexes and relationships;
+- a database-independent canonical schema model;
+- DDL generation for PostgreSQL, MySQL and SQLite;
+- JSON project persistence through the API;
+- reverse engineering for allowlisted PostgreSQL, MySQL and SQLite sources;
+- automatic diagram layout, schema problem feedback and editing shortcuts;
+- SQL, JSON, PNG and Markdown export;
+- controlled DDL execution against fixed local test targets;
+- Docker Compose development services;
+- CI, dependency review, Dependabot and CodeQL configuration.
 
-- The repository is organized as a monorepo.
-- The frontend has a TypeScript React Flow editor with table nodes, column editing, relationships and SQL preview.
-- The API has a Node.js + TypeScript + Fastify implementation with Zod validation, SQL generation, JSON project persistence and initial database introspection.
-- Architecture and roadmap documents are available in `doc/`.
+This is not yet recommended for production databases. SQL execution and network introspection are disabled by default.
 
-## Planned Stack
+## Technology
 
 Frontend:
 
-- React
-- Vite
-- React Flow via `@xyflow/react`
-- TypeScript
+- React 19 and TypeScript;
+- Vite;
+- React Flow through `@xyflow/react`;
+- Dagre for initial automatic layout.
 
 Backend:
 
-- Node.js
-- TypeScript
-- Fastify
-- Zod
-- Knex for database connections, auxiliary queries and introspection support
+- Node.js 22 and TypeScript;
+- Fastify;
+- Zod;
+- explicit PostgreSQL, MySQL and SQLite adapters.
 
-Runtime and local development:
+Runtime and quality:
 
-- Docker
-- Docker Compose
-- PostgreSQL and MySQL test containers
-- SQLite through local files or mounted volumes
+- Docker and Docker Compose;
+- Vitest and ESLint;
+- GitHub Actions, CodeQL, Dependabot and dependency review.
 
-## Repository Layout
+## Repository layout
 
 ```txt
 drawbase/
-  app/                  # Frontend React application
-  api/                  # Backend API
+  app/                  # React + React Flow frontend
+  api/                  # Fastify API and domain services
   doc/                  # Architecture, roadmap and project documentation
-  docker-compose.yml    # Local Docker environment
-  LICENSE               # MIT license
-  README.md             # Project overview
+  .github/              # CI, security automation and contribution templates
+  docker-compose.yml    # Reproducible local environment
 ```
 
-## Architecture Principles
+## Quick start with Docker
 
-- Keep a canonical schema model independent from React Flow.
-- Treat React Flow as the visual editor, not as the domain model.
-- Generate SQL through explicit dialect modules for PostgreSQL, MySQL and SQLite.
-- Validate all API payloads with Zod.
-- Keep SQL generation separate from SQL execution.
-- Make dangerous features explicit, reviewed and opt-in.
-- Prefer testable core logic over UI-bound behavior.
-
-More details are available in [doc/architecture.md](doc/architecture.md).
-
-The canonical schema contract is documented in [doc/schema-model.md](doc/schema-model.md).
-
-## Roadmap
-
-The current development plan is documented in [doc/roadmap.md](doc/roadmap.md).
-
-The recommended order is:
-
-1. Finish the repository foundation.
-2. Define the canonical schema model.
-3. Create the Fastify API with Zod validation.
-4. Implement the SQL generator MVP.
-5. Build the visual frontend MVP with custom table nodes.
-6. Add Docker Compose for the full local environment.
-7. Add project persistence.
-8. Add database introspection and reverse engineering.
-
-## Local Development
-
-The recommended local path is Docker Compose from the repository root:
+Requirements: Docker with the Compose plugin and three locally generated passwords.
 
 ```bash
 cp .env.example .env
+openssl rand -hex 24
+```
+
+Run the password command once for each value and fill in `POSTGRES_PASSWORD`, `MYSQL_PASSWORD` and `MYSQL_ROOT_PASSWORD` in `.env`. Then start the stack:
+
+```bash
 docker compose up --build
 ```
 
-Then open:
+Open:
 
-- Frontend: `http://localhost:5173`
-- API healthcheck: `http://localhost:3001/health`
+- frontend: `http://localhost:5173`;
+- API healthcheck: `http://localhost:3001/health`.
 
-More details are available in [doc/docker.md](doc/docker.md).
+Network introspection and SQL execution remain blocked until explicitly enabled. See [doc/docker.md](doc/docker.md) before changing those settings.
 
-Manual development is also supported.
+## Manual development
 
-The frontend currently lives in `app/`.
-
-```bash
-cd app
-npm install
-npm run dev
-```
-
-The API lives in `api/`.
+Node.js 22 or newer is required. Install and start the API first:
 
 ```bash
 cd api
-npm install
+npm ci
 npm run dev
 ```
 
-During local development, run the API on `http://localhost:3001` before opening the frontend. Vite proxies `/api` and `/health` to the API.
+In another terminal, start the frontend:
 
-## Security Direction
+```bash
+cd app
+npm ci
+npm run dev
+```
 
-DrawBase will eventually handle database connection details, schema metadata and generated SQL, so security is part of the core design.
+Vite proxies `/api` and `/health` to `http://localhost:3001` during local development.
 
-Initial security goals:
+## Validation
 
-- Do not commit secrets or `.env` files.
-- Validate all external input.
-- Escape SQL identifiers per target dialect.
-- Avoid executing generated SQL by default.
-- Add timeouts and host restrictions for future introspection features.
-- Avoid storing database passwords unless explicitly required.
-- Keep Docker containers unprivileged and scoped to local development.
+Run the same checks enforced by CI:
+
+```bash
+cd api
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm audit --audit-level=moderate
+```
+
+```bash
+cd app
+npm run lint
+npm run typecheck
+npm run build
+npm audit --audit-level=moderate
+```
+
+## Architecture
+
+DrawBase follows a few central rules:
+
+- the canonical schema is the source of truth, not React Flow state;
+- database-specific behavior stays behind explicit dialect and adapter modules;
+- every API payload is validated with Zod;
+- SQL generation and SQL execution remain separate;
+- dangerous capabilities use deny-by-default configuration;
+- core domain logic should remain independently testable.
+
+See [architecture](doc/architecture.md), [canonical schema model](doc/schema-model.md), [roadmap](doc/roadmap.md) and [API documentation](api/README.md).
+
+## Contributing and security
+
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md) before opening a pull request.
+
+Do not report vulnerabilities or disclose credentials in public issues. Follow [SECURITY.md](SECURITY.md) for private reporting and safe disclosure.
 
 ## License
 
-DrawBase is released under the MIT License. See [LICENSE](LICENSE).
+DrawBase is released under the [MIT License](LICENSE).

@@ -33,6 +33,13 @@ Resultado esperado:
 - Repositorio unico versionando frontend, backend e documentacao.
 - Estrutura compreensivel para uso pessoal e publicacao open source.
 
+Progresso atual:
+
+- Monorepo Git inicializado na raiz.
+- `.gitignore`, `LICENSE` MIT, `.env.example` e `README.md` criados.
+- `SECURITY.md`, `CONTRIBUTING.md` e `CODE_OF_CONDUCT.md` criados.
+- Arquitetura e roadmap mantidos em `doc/`.
+
 ## Fase 1 - Modelo Canonico
 
 Objetivo: definir a base de dominio antes de crescer interface e API.
@@ -381,6 +388,10 @@ Progresso atual:
 - Tentativas de execucao sao registradas em `sql-execution.jsonl`.
 - Painel `Execute` adicionado ao painel SQL do frontend.
 - Testes automatizados adicionados para confirmacao, politica de bloqueio e log de execucao.
+- Execucao SQL desabilitada por padrao via `SQL_EXECUTION_ENABLED`.
+- Introspeccao de rede bloqueada quando a allowlist nao e configurada.
+- Credenciais conhecidas removidas dos exemplos, Compose e formulario do frontend.
+- Compose configurado para exigir senhas locais sem fallback versionado.
 
 Pendente:
 
@@ -411,6 +422,26 @@ Resultado esperado:
 
 - Repositorio publico com boas praticas minimas de manutencao.
 
+Progresso atual:
+
+- Workflow `CI` criado para API e frontend com instalacao via `npm ci` e auditoria de dependencias.
+- Lint, typecheck, testes da API e builds da API e do frontend configurados como checks.
+- CodeQL configurado para JavaScript e TypeScript em push, pull request e agenda semanal.
+- Dependency Review configurado para bloquear novas vulnerabilidades moderadas, altas ou criticas.
+- Dependabot configurado para npm, GitHub Actions e imagens Docker.
+- Templates estruturados criados para bugs, recursos e pull requests.
+- Politicas de contribuicao, seguranca e conduta adicionadas.
+- Formulario de relato privado de vulnerabilidade adicionado.
+- Arquitetura e README atualizados com estado, validacao e praticas de manutencao.
+- Dependencias vulneraveis identificadas durante a fase foram atualizadas; `npm audit` conclui sem vulnerabilidades conhecidas nos dois pacotes.
+
+Ativacao no GitHub apos o push:
+
+- Tornar o repositorio publico para que secret scanning e code scanning estejam disponiveis gratuitamente.
+- Habilitar private vulnerability reporting e push protection em `Settings > Advanced Security`.
+- Proteger a branch `main` e exigir os checks `API`, `App`, `Analyze JavaScript and TypeScript` e `Review dependency changes`.
+- Confirmar que Dependabot alerts e security updates estao habilitados.
+
 ## Fase 12 - Recursos Futuros
 
 Possibilidades apos o MVP:
@@ -429,15 +460,10 @@ Possibilidades apos o MVP:
 
 ## Prioridade Recomendada
 
-Ordem sugerida para os proximos passos imediatos:
+As fases 0 a 11 possuem implementacao inicial. Os proximos passos recomendados sao estabilizar o MVP antes de ampliar o escopo:
 
-1. Base do repositorio.
-2. Modelo canonico.
-3. API Fastify com Zod.
-4. Gerador SQL MVP.
-5. Frontend MVP com `TableNode`.
-6. Docker Compose.
-7. Persistencia.
-8. Engenharia reversa.
-
-Essa ordem reduz risco porque estabelece primeiro o contrato e o motor central. A interface pode evoluir com seguranca em cima de uma base testavel.
+1. Resolver os itens pendentes registrados nas fases 6 a 10.
+2. Adicionar testes automatizados do frontend e fluxos end-to-end.
+3. Adicionar testes de integracao contra PostgreSQL e MySQL reais no ambiente Docker.
+4. Preparar a primeira release versionada e seu changelog.
+5. Avaliar os recursos futuros da Fase 12 conforme uso real e feedback da comunidade.

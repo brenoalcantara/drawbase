@@ -4,7 +4,7 @@
 
 DrawBase e um software web open source para modelagem visual de bancos de dados. O objetivo e oferecer uma experiencia de uso simples, proxima ao MySQL Workbench para desenho de tabelas e relacionamentos, mas com suporte inicial a PostgreSQL, MySQL e SQLite.
 
-O projeto sera organizado como um monorepo:
+O projeto e organizado como um monorepo:
 
 ```txt
 drawbase/
@@ -54,7 +54,7 @@ Tecnologias:
 - TypeScript
 - Fastify
 - Zod
-- Knex, principalmente para conexoes, consultas auxiliares e introspeccao
+- Drivers explicitos: `pg`, `mysql2` e `sql.js`
 
 Responsabilidades:
 
@@ -65,7 +65,7 @@ Responsabilidades:
 - Executar introspeccao de bancos quando o recurso estiver habilitado.
 - Proteger a aplicacao contra entrada invalida, conexoes indevidas e execucao insegura.
 
-Fastify foi escolhido por ser leve, performatico e adequado a uma API modular. Zod sera usado para garantir validacao de entrada e inferencia de tipos.
+Fastify foi escolhido por ser leve, performatico e adequado a uma API modular. Zod garante validacao de entrada e inferencia de tipos nas fronteiras HTTP.
 
 ### Docker
 
@@ -74,7 +74,7 @@ Tecnologias:
 - Docker
 - Docker Compose
 
-Servicos previstos:
+Servicos atuais:
 
 - `app`: frontend React servido em modo desenvolvimento ou build estatico.
 - `api`: backend Fastify.
@@ -141,13 +141,16 @@ Esse modelo deve ser a fonte da verdade. O React Flow renderiza `nodes` e `edges
 
 ## Dialetos SQL
 
-O backend deve conter uma camada de dialetos:
+O backend contem uma camada de dialetos:
 
 ```txt
 api/src/dialects/
-  postgres/
-  mysql/
-  sqlite/
+  common.ts
+  index.ts
+  mysql.ts
+  postgres.ts
+  sqlite.ts
+  types.ts
 ```
 
 Cada dialeto deve saber:
@@ -160,7 +163,7 @@ Cada dialeto deve saber:
 - Lidar com diferencas de `AUTO_INCREMENT`, `SERIAL`, `IDENTITY` e `AUTOINCREMENT`.
 - Lidar com particularidades de SQLite em alteracoes de schema.
 
-Knex pode ajudar, mas a regra de DDL nao deve ficar totalmente escondida dentro dele. O DrawBase precisa controlar a semantica de modelagem.
+A regra de DDL permanece explicita nos modulos do DrawBase para que a semantica de modelagem seja previsivel, revisavel e coberta por testes.
 
 ## Fluxos Principais
 
@@ -177,7 +180,7 @@ Knex pode ajudar, mas a regra de DDL nao deve ficar totalmente escondida dentro 
 
 ### Geracao de SQL
 
-Endpoint previsto:
+Endpoint implementado:
 
 ```txt
 POST /api/sql/generate
@@ -219,6 +222,7 @@ Saida:
 
 Politica inicial:
 
+- a execucao fica desabilitada enquanto `SQL_EXECUTION_ENABLED` nao for `true`;
 - a API nao aceita connection string livre para execucao;
 - somente alvos locais de teste podem executar SQL;
 - somente `CREATE TABLE` e `CREATE INDEX` sao permitidos;
@@ -227,7 +231,7 @@ Politica inicial:
 
 ### Engenharia Reversa
 
-Endpoint previsto:
+Endpoint implementado:
 
 ```txt
 POST /api/introspection/import
@@ -253,6 +257,7 @@ Implementacao inicial:
 
 - PostgreSQL, MySQL e SQLite sao importados por adaptadores isolados na API.
 - A API aplica allowlist de hosts via `INTROSPECTION_ALLOWED_HOSTS`.
+- Uma allowlist ausente ou vazia bloqueia toda introspeccao de rede.
 - SQLite so aceita arquivos resolvidos dentro de `SQLITE_DATA_DIR`.
 - Cada importacao possui timeout validado no payload.
 - Credenciais recebidas sao usadas apenas na chamada; nao sao persistidas nem retornadas.
@@ -290,11 +295,32 @@ Controles iniciais:
 - Escapar identificadores no gerador SQL por dialeto.
 - Separar geracao de SQL de execucao de SQL.
 - Nao executar SQL diretamente no banco por padrao no MVP.
+- Exigir opt-in explicito por configuracao para execucao SQL.
+- Nao fornecer senhas padrao em arquivos versionados.
 - Usar limites de payload na API.
 - Usar timeouts em conexoes de introspeccao.
 - Nunca salvar senha de conexao sem necessidade explicita.
 - Usar `.env.example` e manter `.env` fora do Git.
 - Incluir `SECURITY.md` no repositorio open source.
+
+## Qualidade e Manutencao Open Source
+
+O repositorio usa automacoes separadas e com permissoes minimas:
+
+- `CI` executa instalacao reproduzivel com `npm ci`, auditoria de dependencias, lint, typecheck, testes da API e builds do frontend e da API;
+- `CodeQL` analisa JavaScript e TypeScript em pushes e pull requests para `main`, alem de uma execucao semanal;
+- `Dependency Review` bloqueia pull requests que introduzam vulnerabilidades de severidade moderada ou superior;
+- Dependabot verifica dependencias npm, GitHub Actions e imagens Docker semanalmente;
+- templates orientam relatos de bugs, propostas e pull requests sem exposicao de dados sensiveis.
+
+O GitHub deve manter `main` protegida, exigindo os checks de CI, CodeQL e Dependency Review antes de merge. Secret scanning funciona automaticamente quando o repositorio e publico. Private vulnerability reporting e push protection devem ser habilitados nas configuracoes de seguranca do repositorio quando disponiveis.
+
+Arquivos de politica:
+
+- `CONTRIBUTING.md`: ambiente, limites arquiteturais e validacao;
+- `SECURITY.md`: versoes suportadas e divulgacao coordenada;
+- `CODE_OF_CONDUCT.md`: comportamento e moderacao;
+- `.github/VULNERABILITY_REPORT.yml`: formulario privado estruturado.
 
 ## Testabilidade
 
@@ -322,56 +348,61 @@ Casos obrigatorios:
 - relacionamento um-para-muitos;
 - relacionamento muitos-para-muitos via tabela intermediaria.
 
-## Estrutura Sugerida da API
+## Estrutura da API
 
 ```txt
 api/
   src/
-    server.ts
     app.ts
+    server.ts
+    dialects/
+      common.ts
+      index.ts
+      mysql.ts
+      postgres.ts
+      sqlite.ts
+      types.ts
+    domain/
+      schema-model.ts
     routes/
       health.routes.ts
-      sql.routes.ts
-      projects.routes.ts
       introspection.routes.ts
+      projects.routes.ts
+      sql.routes.ts
     schemas/
+      introspection.schema.ts
       project.schema.ts
+      projects.schema.ts
       sql.schema.ts
-    domain/
-      project.ts
-      schema-model.ts
-    dialects/
-      postgres/
-      mysql/
-      sqlite/
     services/
-      sql-generator.service.ts
+      introspection/
       introspection.service.ts
-      project-store.service.ts
+      json-project-store.service.ts
+      sql-execution.service.ts
+      sql-generator.service.ts
     tests/
+    utils/
 ```
 
-## Estrutura Sugerida do Frontend
+## Estrutura do Frontend
 
 ```txt
 app/
   src/
-    main.tsx
     App.tsx
-    components/
-      canvas/
-      panels/
-      toolbar/
-    features/
-      schema-editor/
-      sql-preview/
-      project-browser/
-    model/
-      project-schema.ts
-      react-flow-adapter.ts
+    index.css
+    main.tsx
     api/
-      client.ts
-    styles/
+      introspection.ts
+      projects.ts
+      sql.ts
+    components/
+      TableNode.tsx
+    model/
+      projectExport.ts
+      projectOperations.ts
+      reactFlowAdapter.ts
+      schema.ts
 ```
 
 ## Principios de Evolucao

@@ -113,9 +113,9 @@ const initialImportForm: ImportFormState = {
   dialect: 'postgres',
   host: 'postgres-test',
   port: '5432',
-  database: 'drawbase_dev',
-  user: 'drawbase',
-  password: 'drawbase_dev_password',
+  database: '',
+  user: '',
+  password: '',
   schemas: 'public',
   sqliteFilePath: 'example.sqlite',
 };
@@ -443,11 +443,11 @@ export default function App() {
       const next = { ...current, ...update };
 
       if (update.dialect === 'postgres') {
-        return { ...next, host: 'postgres-test', port: '5432', database: 'drawbase_dev', user: 'drawbase' };
+        return { ...next, host: 'postgres-test', port: '5432', database: '', user: '', password: '' };
       }
 
       if (update.dialect === 'mysql') {
-        return { ...next, host: 'mysql-test', port: '3306', database: 'drawbase_dev', user: 'drawbase', schemas: '' };
+        return { ...next, host: 'mysql-test', port: '3306', database: '', user: '', password: '', schemas: '' };
       }
 
       if (update.dialect === 'sqlite') {

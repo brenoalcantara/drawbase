@@ -12,8 +12,6 @@ export class IntrospectionError extends Error {
   }
 }
 
-const DEFAULT_ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'postgres-test', 'mysql-test'];
-
 export function assertHostAllowed(host: string) {
   const normalizedHost = host.trim().toLowerCase();
   const allowedHosts = getAllowedHosts();
@@ -64,7 +62,7 @@ export async function withTimeout<T>(operation: Promise<T>, timeoutMs: number, l
 
 function getAllowedHosts() {
   return new Set(
-    (process.env.INTROSPECTION_ALLOWED_HOSTS ?? DEFAULT_ALLOWED_HOSTS.join(','))
+    (process.env.INTROSPECTION_ALLOWED_HOSTS ?? '')
       .split(',')
       .map((host) => host.trim().toLowerCase())
       .filter(Boolean),

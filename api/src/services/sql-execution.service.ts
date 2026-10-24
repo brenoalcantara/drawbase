@@ -14,9 +14,7 @@ import type {
 } from '../schemas/sql.schema';
 import { generateSql } from './sql-generator.service';
 
-type ExecutionTarget = SqlExecuteResponse['target'] & {
-  connectionUrl?: string;
-};
+type ExecutionTarget = SqlExecuteResponse['target'];
 
 type ExecuteSqlOptions = {
   confirmation: 'EXECUTE_DDL';
@@ -54,6 +52,8 @@ export async function executeGeneratedSql({
   project,
   targetId,
 }: ExecuteSqlOptions): Promise<SqlExecuteResponse> {
+  assertSqlExecutionEnabled();
+
   if (confirmation !== 'EXECUTE_DDL') {
     throw new SqlExecutionError('SQL_EXECUTION_CONFIRMATION_REQUIRED', 'Execution requires explicit confirmation.');
   }
@@ -117,7 +117,6 @@ function resolveExecutionTarget(targetId: SqlExecutionTargetId): ExecutionTarget
       id: 'postgres-test',
       label: 'PostgreSQL test',
       dialect: 'postgres',
-      connectionUrl: process.env.POSTGRES_TEST_URL,
     };
   }
 
@@ -126,7 +125,6 @@ function resolveExecutionTarget(targetId: SqlExecutionTargetId): ExecutionTarget
       id: 'mysql-test',
       label: 'MySQL test',
       dialect: 'mysql',
-      connectionUrl: process.env.MYSQL_TEST_URL,
     };
   }
 
@@ -156,9 +154,9 @@ async function executeStatements(
 
   try {
     if (target.dialect === 'postgres') {
-      await executePostgres(target, statements);
+      await executePostgres(statements);
     } else if (target.dialect === 'mysql') {
-      await executeMysql(target, statements);
+      await executeMysql(statements);
     } else {
       await executeSqlite(statements);
     }
@@ -187,13 +185,13 @@ async function executeStatements(
   }
 }
 
-async function executePostgres(target: ExecutionTarget, statements: SqlStatement[]) {
-  if (!target.connectionUrl) {
-    throw new SqlExecutionError('SQL_EXECUTION_TARGET_UNAVAILABLE', 'POSTGRES_TEST_URL is not configured.', 503);
-  }
-
+async function executePostgres(statements: SqlStatement[]) {
   const client = new PgClient({
-    connectionString: target.connectionUrl,
+    host: readRequiredExecutionEnv('POSTGRES_TEST_HOST'),
+    port: readExecutionPort('POSTGRES_TEST_PORT'),
+    database: readRequiredExecutionEnv('POSTGRES_TEST_DATABASE'),
+    user: readRequiredExecutionEnv('POSTGRES_TEST_USER'),
+    password: readRequiredExecutionEnv('POSTGRES_TEST_PASSWORD'),
     statement_timeout: 5000,
     query_timeout: 5000,
   });
@@ -220,13 +218,13 @@ async function executePostgres(target: ExecutionTarget, statements: SqlStatement
   }
 }
 
-async function executeMysql(target: ExecutionTarget, statements: SqlStatement[]) {
-  if (!target.connectionUrl) {
-    throw new SqlExecutionError('SQL_EXECUTION_TARGET_UNAVAILABLE', 'MYSQL_TEST_URL is not configured.', 503);
-  }
-
+async function executeMysql(statements: SqlStatement[]) {
   const connection = await mysql.createConnection({
-    uri: target.connectionUrl,
+    host: readRequiredExecutionEnv('MYSQL_TEST_HOST'),
+    port: readExecutionPort('MYSQL_TEST_PORT'),
+    database: readRequiredExecutionEnv('MYSQL_TEST_DATABASE'),
+    user: readRequiredExecutionEnv('MYSQL_TEST_USER'),
+    password: readRequiredExecutionEnv('MYSQL_TEST_PASSWORD'),
     connectTimeout: 5000,
     multipleStatements: false,
   });
@@ -398,6 +396,45 @@ function resolveExecutionLogPath() {
   const logDir = path.resolve(process.env.SQL_EXECUTION_LOG_DIR ?? process.env.PROJECTS_DATA_DIR ?? path.resolve(process.cwd(), 'data'));
 
   return path.join(logDir, 'sql-execution.jsonl');
+}
+
+function assertSqlExecutionEnabled() {
+  if (process.env.SQL_EXECUTION_ENABLED?.trim().toLowerCase() !== 'true') {
+    throw new SqlExecutionError(
+      'SQL_EXECUTION_DISABLED',
+      'SQL execution is disabled. Set SQL_EXECUTION_ENABLED=true only in a controlled local environment.',
+      403,
+    );
+  }
+}
+
+function readRequiredExecutionEnv(name: string) {
+  const value = process.env[name]?.trim();
+
+  if (!value) {
+    throw new SqlExecutionError(
+      'SQL_EXECUTION_TARGET_UNAVAILABLE',
+      `SQL execution target configuration ${name} is missing.`,
+      503,
+    );
+  }
+
+  return value;
+}
+
+function readExecutionPort(name: string) {
+  const value = readRequiredExecutionEnv(name);
+  const port = Number.parseInt(value, 10);
+
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new SqlExecutionError(
+      'SQL_EXECUTION_TARGET_UNAVAILABLE',
+      `SQL execution target configuration ${name} is invalid.`,
+      503,
+    );
+  }
+
+  return port;
 }
 
 async function appendExecutionLog(record: Record<string, unknown>) {

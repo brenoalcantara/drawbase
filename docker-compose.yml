@@ -39,12 +39,21 @@ services:
     environment:
       CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-true}
       HOST: 0.0.0.0
-      INTROSPECTION_ALLOWED_HOSTS: ${INTROSPECTION_ALLOWED_HOSTS:-localhost,127.0.0.1,postgres-test,mysql-test}
-      MYSQL_TEST_URL: mysql://drawbase:drawbase_dev_password@mysql-test:3306/drawbase_dev
+      INTROSPECTION_ALLOWED_HOSTS: ${INTROSPECTION_ALLOWED_HOSTS:-}
+      MYSQL_TEST_DATABASE: ${MYSQL_DATABASE:-drawbase_dev}
+      MYSQL_TEST_HOST: mysql-test
+      MYSQL_TEST_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      MYSQL_TEST_PORT: 3306
+      MYSQL_TEST_USER: ${MYSQL_USER:-drawbase}
       NODE_ENV: development
       PORT: 3001
-      POSTGRES_TEST_URL: postgresql://drawbase:drawbase_dev_password@postgres-test:5432/drawbase_dev
+      POSTGRES_TEST_DATABASE: ${POSTGRES_DB:-drawbase_dev}
+      POSTGRES_TEST_HOST: postgres-test
+      POSTGRES_TEST_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_TEST_PORT: 5432
+      POSTGRES_TEST_USER: ${POSTGRES_USER:-drawbase}
       PROJECTS_DATA_DIR: ${PROJECTS_DATA_DIR:-/data/projects}
+      SQL_EXECUTION_ENABLED: ${SQL_EXECUTION_ENABLED:-false}
       SQL_EXECUTION_LOG_DIR: ${SQL_EXECUTION_LOG_DIR:-/data/projects}
       SQLITE_DATA_DIR: /data/sqlite
     healthcheck:
@@ -71,7 +80,7 @@ services:
   postgres-test:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-drawbase_dev}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-drawbase_dev_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_USER: ${POSTGRES_USER:-drawbase}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
@@ -88,8 +97,8 @@ services:
   mysql-test:
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-drawbase_dev}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-drawbase_dev_password}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-drawbase_root_password}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
       MYSQL_USER: ${MYSQL_USER:-drawbase}
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]

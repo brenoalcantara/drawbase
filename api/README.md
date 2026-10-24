@@ -45,18 +45,23 @@ Project endpoints persist the canonical project model as JSON files.
 
 SQL execution is intentionally limited:
 
+- `SQL_EXECUTION_ENABLED` must be explicitly set to `true`;
 - the request must send `confirmation: "EXECUTE_DDL"`;
 - targets are fixed to `postgres-test`, `mysql-test` and `sqlite-sandbox`;
 - arbitrary connection strings are not accepted;
 - only generated `CREATE TABLE` and `CREATE INDEX` statements are allowed;
 - execution attempts are appended to a local JSONL log file.
 
+Network introspection is denied when `INTROSPECTION_ALLOWED_HOSTS` is empty or missing. Credentials must be supplied through the local environment and are not included in versioned examples.
+
 ## Local Development
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
+
+Node.js 22 or newer is required. The API starts safely without database credentials: network introspection and SQL execution remain disabled until configured explicitly. Use `api/.env.example` only as a reference and provide values through your local environment; do not commit a populated `.env` file.
 
 Useful scripts:
 
@@ -65,6 +70,7 @@ npm run build
 npm run typecheck
 npm run lint
 npm run test
+npm audit --audit-level=moderate
 ```
 
 ## Notes
@@ -79,3 +85,5 @@ src/domain/schema-model.ts
 ```
 
 See the project architecture document for the full design: `../doc/architecture.md`.
+
+Contribution and vulnerability reporting policies are available in `../CONTRIBUTING.md` and `../SECURITY.md`.

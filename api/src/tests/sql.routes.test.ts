@@ -9,13 +9,15 @@ import { createApp } from '../app';
 
 let app: FastifyInstance | undefined;
 const originalExecutionLogDir = process.env.SQL_EXECUTION_LOG_DIR;
+const originalExecutionEnabled = process.env.SQL_EXECUTION_ENABLED;
 const originalSqliteDataDir = process.env.SQLITE_DATA_DIR;
 
 afterEach(async () => {
   await app?.close();
   app = undefined;
-  process.env.SQL_EXECUTION_LOG_DIR = originalExecutionLogDir;
-  process.env.SQLITE_DATA_DIR = originalSqliteDataDir;
+  restoreEnvironmentVariable('SQL_EXECUTION_ENABLED', originalExecutionEnabled);
+  restoreEnvironmentVariable('SQL_EXECUTION_LOG_DIR', originalExecutionLogDir);
+  restoreEnvironmentVariable('SQLITE_DATA_DIR', originalSqliteDataDir);
 });
 
 const project = {
@@ -101,11 +103,34 @@ describe('sql routes', () => {
     });
   });
 
+  it('keeps SQL execution disabled unless explicitly enabled', async () => {
+    process.env.SQL_EXECUTION_ENABLED = 'false';
+    app = await createApp({ logger: false });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/sql/execute',
+      payload: {
+        project,
+        targetId: 'sqlite-sandbox',
+        confirmation: 'EXECUTE_DDL',
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: 'SQL_EXECUTION_DISABLED',
+      },
+    });
+  });
+
   it('executes generated SQL only against fixed test targets and writes an execution log', async () => {
     const dataDir = await mkdtemp(path.join(os.tmpdir(), 'drawbase-sqlite-'));
     const logDir = await mkdtemp(path.join(os.tmpdir(), 'drawbase-sql-log-'));
     process.env.SQLITE_DATA_DIR = dataDir;
     process.env.SQL_EXECUTION_LOG_DIR = logDir;
+    process.env.SQL_EXECUTION_ENABLED = 'true';
     app = await createApp({ logger: false });
 
     const response = await app.inject({
@@ -136,6 +161,7 @@ describe('sql routes', () => {
   });
 
   it('blocks generated SQL that contains statements outside the execution policy', async () => {
+    process.env.SQL_EXECUTION_ENABLED = 'true';
     app = await createApp({ logger: false });
 
     const response = await app.inject({
@@ -178,3 +204,12 @@ describe('sql routes', () => {
     });
   });
 });
+
+function restoreEnvironmentVariable(name: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[name];
+    return;
+  }
+
+  process.env[name] = value;
+}
